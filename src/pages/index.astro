@@ -244,9 +244,13 @@ const clientConfig = {
             durationSec = embedController.getDuration() || t.durationSec;
           } catch (e) {}
         } else {
-          const cur = currentTrack();
-          const isNow = userOffsetTracks === 0;
-          into = cur && isNow ? cur.into : 0;
+          // Don't show a fake "already X seconds in" position before the
+          // user presses play -- real playback always starts a track from
+          // 0:00, so showing anything else here would make the bar visibly
+          // snap backwards the instant audio actually starts, which reads
+          // as broken. The track *selection* still rotates on the shared
+          // clock (via activeIndex above); only the numeric position doesn't.
+          into = 0;
         }
         elTotal.textContent = fmt(durationSec);
         elElapsed.textContent = fmt(into);
