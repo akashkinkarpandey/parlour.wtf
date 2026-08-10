@@ -143,7 +143,10 @@
   }
 
   /* YouTube IFrame API integration — no login gate, and gives us real
-   * prev/next control over the playlist. */
+   * prev/next control over the playlist. Loaded on demand (first play
+   * click, or first idle callback after LCP) so ~500 KiB of iframe-API
+   * JS + a same-origin YouTube iframe don't compete with the hero image
+   * during the critical render path. */
   function ensureYouTubeScript() {
     if (window.__ytScriptRequested) return;
     window.__ytScriptRequested = true;
@@ -153,12 +156,17 @@
     document.head.appendChild(s);
   }
 
-  // Bootstrap the embed as soon as the page loads (not on first click) so
-  // that by the time the user actually presses play, the player already
-  // exists and playVideo() runs synchronously inside the click handler.
-  // Calling playVideo() only after an async script-load + player-init
-  // chain breaks the browser's "direct user gesture" association, which
+  // Bootstrap the embed BEFORE the user first clicks play, so that by
+  // the time they actually press play, the player already exists and
+  // playVideo() runs synchronously inside the click handler. Calling
+  // playVideo() only after an async script-load + player-init chain
+  // breaks the browser's "direct user gesture" association, which
   // silently blocks audio — that's the "bar moves, no sound" bug.
+  //
+  // We defer the initial bootstrap to requestIdleCallback (or a short
+  // timeout fallback) so it doesn't run during the LCP window; that
+  // trades a tiny extra latency on the *very first* play click on a
+  // very fresh page for a much faster hero paint on every load.
   function mountYouTube() {
     if (!YT_IDS.length || !elEmbedMount || embedController) return;
     elEmbedMount.innerHTML = '';
@@ -210,7 +218,25 @@
   }
 
   window.onYouTubeIframeAPIReady = function () { mountYouTube(); };
-  ensureYouTubeScript();
+
+  // Kick the YT script off the critical path: wait for idle (or 3 s as
+  // a fallback for browsers without requestIdleCallback) before touching
+  // the network. First-click still works either way — togglePlay() sets
+  // pendingPlay and calls ensureYouTubeScript() itself if the user beats
+  // idle to it.
+  function scheduleYouTubeBootstrap() {
+    var kick = function () { ensureYouTubeScript(); };
+    if ('requestIdleCallback' in window) {
+      requestIdleCallback(kick, { timeout: 3000 });
+    } else {
+      setTimeout(kick, 2500);
+    }
+  }
+  if (document.readyState === 'complete') {
+    scheduleYouTubeBootstrap();
+  } else {
+    window.addEventListener('load', scheduleYouTubeBootstrap, { once: true });
+  }
 
   // cueVideoById/loadVideoById on a single video ID — the standard,
   // reliable YT IFrame API calls (unlike the playlist-array methods,

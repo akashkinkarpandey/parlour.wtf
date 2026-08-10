@@ -1,16 +1,31 @@
 ---
 import { site } from '~/config/site';
 
+type PreloadImage = {
+  href: string;
+  type?: string;
+  media?: string;
+  imagesrcset?: string;
+  imagesizes?: string;
+};
+
 type Props = {
   title?: string;
   description?: string;
   canonical?: string;
+  /**
+   * Extra <link rel="preload" as="image"> entries emitted early in the
+   * <head>. Use to promote the LCP image so the browser starts fetching
+   * it in parallel with parsing, before CSS/JS has run.
+   */
+  preloadImages?: PreloadImage[];
 };
 
 const {
   title = site.title,
   description = site.description,
   canonical,
+  preloadImages = [],
 } = Astro.props;
 
 const url = canonical ?? new URL(Astro.url.pathname, Astro.site ?? `https://${site.domain}`).toString();
@@ -27,6 +42,19 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
     <meta name="description" content={description} />
     <meta name="robots" content="index, follow" />
     <link rel="canonical" href={url} />
+
+    {preloadImages.map((img) => (
+      <link
+        rel="preload"
+        as="image"
+        href={img.href}
+        type={img.type}
+        media={img.media}
+        imagesrcset={img.imagesrcset}
+        imagesizes={img.imagesizes}
+        fetchpriority="high"
+      />
+    ))}
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
@@ -54,26 +82,11 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
     <meta name="twitter:description" content={description} />
     <meta name="twitter:image" content={ogImage} />
 
-    <link
-      rel="preconnect"
-      href="https://open.spotify.com"
-      crossorigin
-    />
-    <link
-      rel="preconnect"
-      href="https://music.youtube.com"
-      crossorigin
-    />
-    <link
-      rel="preconnect"
-      href="https://www.googletagmanager.com"
-      crossorigin
-    />
-    <link
-      rel="preconnect"
-      href="https://www.google-analytics.com"
-      crossorigin
-    />
+    <!-- No preconnects to Spotify/YouTube-Music: those are outbound
+         navigation links only (never a resource fetch), so warming a
+         TLS handshake to them just steals a connection slot from the
+         hero image. GA is booted post-LCP, so its preconnect is also
+         intentionally omitted. -->
 
     <link rel="sitemap" href="/sitemap-index.xml" />
 
@@ -87,10 +100,14 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
       sameAs: [site.spotifyPlaylistUrl, site.ytMusicPlaylistUrl],
     })} />
 
-    <!-- Google tag (gtag.js) — kept as real static-file <script src> tags
-         (not inline) so the strict CSP (script-src, no 'unsafe-inline')
-         still applies. See public/ga.js. -->
-    <script async src={`https://www.googletagmanager.com/gtag/js?id=${site.gaId}`} is:inline></script>
+    <!-- Google Analytics. Only /ga.js is loaded here; it waits for the
+         browser to go idle *after* the LCP paint, then injects the real
+         gtag.js. Loading gtag.js from the head competes with the hero
+         image for main-thread + connection budget and pushed LCP past
+         3 s on mobile — this trades a few hundred ms of GA-init latency
+         for a noticeably faster first paint. Kept as a real static-file
+         <script src> (not inline) so the strict CSP (script-src, no
+         'unsafe-inline') still applies. See public/ga.js. -->
     <script src="/ga.js" defer is:inline></script>
   </head>
   <body>

@@ -51,24 +51,34 @@
   Cache-Control: public, max-age=86400
   Content-Type: application/manifest+json
 
+# Service worker MUST stay uncached — the whole point of no-cache here
+# is that updates land the next time the browser hits sw.js, not 10 min
+# later. Keep as no-cache; anything else risks a stale SW pinning the
+# site to old assets.
 /sw.js
   Cache-Control: no-cache
   Content-Type: application/javascript; charset=utf-8
 
+# The other static JS files aren't hashed, but they change rarely enough
+# that a short-cache-then-revalidate is safe (and Lighthouse's "efficient
+# cache lifetimes" rule fires at anything shorter than a few minutes).
+# The service worker's stale-while-revalidate wraps this anyway, so the
+# effective UX on updates is: served instantly from cache, then swapped
+# in the background.
 /player.js
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=3600, must-revalidate
   Content-Type: application/javascript; charset=utf-8
 
 /sw-register.js
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=3600, must-revalidate
   Content-Type: application/javascript; charset=utf-8
 
 /ga.js
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=3600, must-revalidate
   Content-Type: application/javascript; charset=utf-8
 
 /nav.js
-  Cache-Control: no-cache
+  Cache-Control: public, max-age=3600, must-revalidate
   Content-Type: application/javascript; charset=utf-8
 
 /api/*

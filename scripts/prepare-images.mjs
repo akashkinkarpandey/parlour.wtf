@@ -10,12 +10,17 @@ console.log('source', meta.width, 'x', meta.height);
 
 await sharp(src)
   .resize({ width: 1920, withoutEnlargement: true })
-  .webp({ quality: 82 })
+  .avif({ quality: 55, effort: 6 })
+  .toFile(`${outDir}/hero.avif`);
+
+await sharp(src)
+  .resize({ width: 1920, withoutEnlargement: true })
+  .webp({ quality: 78 })
   .toFile(`${outDir}/hero.webp`);
 
 await sharp(src)
   .resize({ width: 1920, withoutEnlargement: true })
-  .jpeg({ quality: 82, mozjpeg: true })
+  .jpeg({ quality: 80, mozjpeg: true })
   .toFile(`${outDir}/hero.jpg`);
 
 const w = meta.width, h = meta.height;
@@ -31,14 +36,20 @@ console.log('mobile crop', { left, top: 0, width: cropW, height: cropH });
 
 await sharp(src)
   .extract({ left, top: 0, width: cropW, height: cropH })
-  .resize({ width: 900 })
-  .webp({ quality: 82 })
+  .resize({ width: 828 })
+  .avif({ quality: 50, effort: 6 })
+  .toFile(`${outDir}/hero-mobile.avif`);
+
+await sharp(src)
+  .extract({ left, top: 0, width: cropW, height: cropH })
+  .resize({ width: 828 })
+  .webp({ quality: 74 })
   .toFile(`${outDir}/hero-mobile.webp`);
 
 await sharp(src)
   .extract({ left, top: 0, width: cropW, height: cropH })
-  .resize({ width: 900 })
-  .jpeg({ quality: 82, mozjpeg: true })
+  .resize({ width: 828 })
+  .jpeg({ quality: 78, mozjpeg: true })
   .toFile(`${outDir}/hero-mobile.jpg`);
 
 await sharp(src)

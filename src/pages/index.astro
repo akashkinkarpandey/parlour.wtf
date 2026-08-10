@@ -1,11 +1,30 @@
 ---
 import Layout from '~/layouts/Layout.astro';
+import heroAvif from '~/assets/hero.avif';
 import hero from '~/assets/hero.webp';
 import heroJpg from '~/assets/hero.jpg';
+import heroMobileAvif from '~/assets/hero-mobile.avif';
 import heroMobile from '~/assets/hero-mobile.webp';
 import heroMobileJpg from '~/assets/hero-mobile.jpg';
 import albumArt from '~/assets/album-art.webp';
 import { site } from '~/config/site';
+
+// Preload the mobile+desktop LCP image so the browser starts fetching
+// it in parallel with HTML parsing instead of waiting for the CSSOM to
+// resolve. `imagesrcset` + `media` lets us hand the browser exactly one
+// URL per viewport — no wasted download.
+const preloadImages = [
+  {
+    href: heroMobileAvif.src,
+    type: 'image/avif',
+    media: '(max-width: 760px)',
+  },
+  {
+    href: heroAvif.src,
+    type: 'image/avif',
+    media: '(min-width: 761px)',
+  },
+];
 
 // Everything on this page is computed client-side from a fixed epoch, so
 // there's nothing per-request to render — prerender it to a static asset
@@ -26,11 +45,13 @@ const clientConfig = {
   })),
 };
 ---
-<Layout>
+<Layout preloadImages={preloadImages}>
   <main class="stage">
     <picture class="bg">
+      <source srcset={heroMobileAvif.src} type="image/avif" media="(max-width: 760px)" />
       <source srcset={heroMobile.src} type="image/webp" media="(max-width: 760px)" />
       <source srcset={heroMobileJpg.src} type="image/jpeg" media="(max-width: 760px)" />
+      <source srcset={heroAvif.src} type="image/avif" />
       <source srcset={hero.src} type="image/webp" />
       <img
         src={heroJpg.src}
@@ -323,19 +344,34 @@ const clientConfig = {
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.14);
   }
   .count-text { font-variant-numeric: tabular-nums; color: var(--cream-dim); }
+  /* Composited pulse: an absolutely-positioned pseudo-element that
+     animates transform + opacity instead of box-shadow. Box-shadow
+     pulses were the "non-composited animation" flagged by PageSpeed —
+     every frame repainted the topbar. Transform+opacity stay on the
+     GPU. */
   .dot {
+    position: relative;
     width: 6px;
     height: 6px;
     border-radius: 50%;
     background: var(--gold);
-    box-shadow: 0 0 0 0 rgba(217, 168, 96, 0.5);
+  }
+  .dot::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: 50%;
+    background: rgba(217, 168, 96, 0.5);
+    transform: scale(1);
+    opacity: 0.5;
+    will-change: transform, opacity;
     animation: pulse 3.4s ease-out infinite;
   }
 
   @keyframes pulse {
-    0%   { box-shadow: 0 0 0 0 rgba(217, 168, 96, 0.5); }
-    70%  { box-shadow: 0 0 0 7px rgba(217, 168, 96, 0); }
-    100% { box-shadow: 0 0 0 0 rgba(217, 168, 96, 0); }
+    0%   { transform: scale(1);   opacity: 0.5; }
+    70%  { transform: scale(3.3); opacity: 0;   }
+    100% { transform: scale(3.3); opacity: 0;   }
   }
 
   .links {
