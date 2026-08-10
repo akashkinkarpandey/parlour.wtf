@@ -217,21 +217,16 @@ const clientConfig = {
         }
       }
 
-      // While real audio is playing, the displayed title/artist must come
-      // from the actual video — the epoch-based `tracks` list only estimates
-      // what "should" be on now and can drift out of sync with whatever
-      // YouTube is really playing (wrong song name against real audio).
-      function refreshFromEmbed(attempt) {
-        if (!embedController || !embedController.getVideoData) return;
-        let d;
-        try { d = embedController.getVideoData(); } catch (e) { return; }
-        if (d && d.title) {
-          elTitle.textContent = d.title;
-          elArtist.textContent = d.author || ' ';
-        } else if ((attempt || 0) < 5) {
-          // Metadata isn't populated yet right as playback starts — retry briefly.
-          setTimeout(function () { refreshFromEmbed((attempt || 0) + 1); }, 400);
-        }
+      // The loaded video is always the exact verified track at `playIndex`
+      // (per-track IDs, not a shared playlist), so the display must come
+      // from our own clean metadata -- never from YouTube's raw video title,
+      // which carries platform cruft like "(Full Video) | Official HD".
+      function renderPlayingTrack() {
+        const t = tracks[playIndex];
+        if (!t) return;
+        elTitle.textContent = t.title;
+        elArtist.textContent = t.artist;
+        elTotal.textContent = fmt(t.durationSec);
       }
 
       /* YouTube IFrame API integration — no login gate, and gives us real
@@ -285,7 +280,7 @@ const clientConfig = {
                 setPlayIcon(true);
                 elPlayer.classList.add('is-live');
                 hideFakeProgress();
-                refreshFromEmbed();
+                renderPlayingTrack();
               } else if (e.data === 2) {
                 setPlayIcon(false);
               } else if (e.data === 0) {
