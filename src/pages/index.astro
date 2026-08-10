@@ -7,7 +7,10 @@ import heroMobileJpg from '~/assets/hero-mobile.jpg';
 import albumArt from '~/assets/album-art.webp';
 import { site } from '~/config/site';
 
-export const prerender = false;
+// Everything on this page is computed client-side from a fixed epoch, so
+// there's nothing per-request to render — prerender it to a static asset
+// (served straight from Cloudflare's edge, no Worker invocation per view).
+export const prerender = true;
 
 // Serialize the small subset the client needs, so we ship no more than needed.
 const clientConfig = {
@@ -88,8 +91,10 @@ const clientConfig = {
           <img src={albumArt.src} width="64" height="64" alt="" loading="lazy" decoding="async" />
         </button>
         <div class="meta">
-          <div class="track" id="track-title">Loading the parlour radio…</div>
-          <div class="artist" id="track-artist">&nbsp;</div>
+          <div class="track-info" aria-live="polite" aria-atomic="true">
+            <div class="track" id="track-title">Loading the parlour radio…</div>
+            <div class="artist" id="track-artist">&nbsp;</div>
+          </div>
           <div class="progress" id="progress" aria-hidden="true">
             <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
             <div class="times">
@@ -117,342 +122,7 @@ const clientConfig = {
 
   <script type="application/json" id="site-cfg" set:html={JSON.stringify(clientConfig)} />
 
-  <script is:inline>
-    (function () {
-      const cfg = JSON.parse(document.getElementById('site-cfg').textContent || '{}');
-      const tracks = cfg.tracks || [];
-      const epoch = Number(cfg.epochStart) || 0;
-      const total = tracks.reduce((s, t) => s + t.durationSec, 0) || 1;
-
-      const $ = (id) => document.getElementById(id);
-      const elTitle = $('track-title');
-      const elArtist = $('track-artist');
-      const elElapsed = $('time-elapsed');
-      const elTotal = $('time-total');
-      const elBar = $('bar-fill');
-      const elPlay = $('btn-play');
-      const elArt = $('btn-art');
-      const elPrev = $('btn-prev');
-      const elNext = $('btn-next');
-      const elCount = $('online-count');
-      const elPlayer = $('player');
-      const elEmbedMount = $('embed-mount');
-      const iconPlay = $('icon-play');
-      const iconPause = $('icon-pause');
-
-      let userOffsetTracks = 0;
-      let embedController = null;
-      let embedReady = false;
-      let embedIsPlaying = false;
-      // Set once real audio has actually been confirmed playing at least
-      // once. From then on the progress bar trusts the embed's own clock
-      // instead of the shared-room simulation -- but unlike before, it
-      // never gets hidden: it just shows the real (possibly paused) time.
-      let realAudioConfirmed = false;
-      // Set when the user hits play before the embed has finished
-      // bootstrapping, so we can honor it the moment it's ready.
-      let pendingPlay = false;
-      // Index into YT_IDS of whatever's actually loaded in the embed.
-      let playIndex = 0;
-      // Guards against a track that neither errors nor ever reaches
-      // PLAYING (a region block that doesn't fire onError, a stuck ad, a
-      // dead stream) -- without this the UI just sits there silently
-      // forever with the bar "moving" off the ambient clock and no sound.
-      let playWatchdog = null;
-
-      function fmt(sec) {
-        sec = Math.max(0, Math.floor(sec));
-        const m = Math.floor(sec / 60);
-        const s = sec % 60;
-        return m + ':' + (s < 10 ? '0' + s : s);
-      }
-
-      function currentTrack() {
-        if (!tracks.length) return null;
-        const elapsedTotal = ((Date.now() - epoch) / 1000) % total;
-        let acc = 0;
-        for (let i = 0; i < tracks.length; i++) {
-          const t = tracks[i];
-          if (elapsedTotal < acc + t.durationSec) {
-            return { i, into: elapsedTotal - acc };
-          }
-          acc += t.durationSec;
-        }
-        return { i: 0, into: 0 };
-      }
-
-      function activeIndex() {
-        const cur = currentTrack();
-        if (!cur) return 0;
-        return (cur.i + userOffsetTracks + tracks.length * 1000) % tracks.length;
-      }
-
-      // Verified per-track video IDs, in the same order as `tracks` — not an
-      // external playlist, so what plays always matches the title/artist.
-      const YT_IDS = tracks.map(function (t) { return t.youtubeId; }).filter(Boolean);
-
-      function clearWatchdog() {
-        if (playWatchdog) {
-          clearTimeout(playWatchdog);
-          playWatchdog = null;
-        }
-      }
-
-      // Arms a timer when playback is requested. If PLAYING isn't confirmed
-      // by the time it fires, this track is dead -- skip forward instead of
-      // leaving the ambient clock ticking over silence forever.
-      function armWatchdog() {
-        clearWatchdog();
-        const targetIndex = playIndex;
-        playWatchdog = setTimeout(function () {
-          if (!embedIsPlaying && playIndex === targetIndex) {
-            loadTrack(playIndex + 1, true);
-          }
-        }, 6000);
-      }
-
-      function setPlayIcon(isPlaying) {
-        embedIsPlaying = isPlaying;
-        if (isPlaying) {
-          realAudioConfirmed = true;
-          clearWatchdog();
-        }
-        if (iconPlay && iconPause) {
-          iconPlay.classList.toggle('is-hidden', isPlaying);
-          iconPause.classList.toggle('is-hidden', !isPlaying);
-        }
-        elPlay.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
-      }
-
-      // Single source of truth for what's on screen. Once real audio has
-      // ever been confirmed, the embed's own clock drives the bar (accurate,
-      // never disagrees with what's actually audible -- including while
-      // paused). Before that, the shared epoch simulation drives it, so the
-      // "room" still feels alive before anyone presses play.
-      function render() {
-        const idx = realAudioConfirmed ? playIndex : activeIndex();
-        const t = tracks[idx];
-        if (!t) return;
-        elTitle.textContent = t.title;
-        elArtist.textContent = t.artist;
-
-        let into = 0;
-        let durationSec = t.durationSec;
-        if (realAudioConfirmed && embedController && embedController.getCurrentTime) {
-          try {
-            into = embedController.getCurrentTime() || 0;
-            durationSec = embedController.getDuration() || t.durationSec;
-          } catch (e) {}
-        } else {
-          // Don't show a fake "already X seconds in" position before the
-          // user presses play -- real playback always starts a track from
-          // 0:00, so showing anything else here would make the bar visibly
-          // snap backwards the instant audio actually starts, which reads
-          // as broken. The track *selection* still rotates on the shared
-          // clock (via activeIndex above); only the numeric position doesn't.
-          into = 0;
-        }
-        elTotal.textContent = fmt(durationSec);
-        elElapsed.textContent = fmt(into);
-        const pct = Math.min(100, Math.max(0, (into / durationSec) * 100));
-        elBar.style.width = pct + '%';
-      }
-
-      /* YouTube IFrame API integration — no login gate, and gives us real
-       * prev/next control over the playlist. */
-      function ensureYouTubeScript() {
-        if (window.__ytScriptRequested) return;
-        window.__ytScriptRequested = true;
-        const s = document.createElement('script');
-        s.src = 'https://www.youtube.com/iframe_api';
-        s.async = true;
-        document.head.appendChild(s);
-      }
-
-      // Bootstrap the embed as soon as the page loads (not on first click) so
-      // that by the time the user actually presses play, the player already
-      // exists and playVideo() runs synchronously inside the click handler.
-      // Calling playVideo() only after an async script-load + player-init
-      // chain breaks the browser's "direct user gesture" association, which
-      // silently blocks audio — that's the "bar moves, no sound" bug.
-      function mountYouTube() {
-        if (!YT_IDS.length || !elEmbedMount || embedController) return;
-        elEmbedMount.innerHTML = '';
-        const holder = document.createElement('div');
-        holder.id = 'yt-player';
-        elEmbedMount.appendChild(holder);
-        embedController = new window.YT.Player('yt-player', {
-          width: '100%',
-          height: '100%',
-          playerVars: {
-            autoplay: 0,
-            playsinline: 1,
-            modestbranding: 1,
-            rel: 0,
-          },
-          events: {
-            onReady: function () {
-              embedReady = true;
-              playIndex = activeIndex();
-              // Silently cue (not play) whatever track the shared clock
-              // currently points at, so the first real playVideo() has
-              // something already loaded to act on.
-              try { embedController.cueVideoById(YT_IDS[playIndex]); } catch (e) {}
-              if (pendingPlay) {
-                pendingPlay = false;
-                armWatchdog();
-                try { embedController.playVideo(); } catch (e) {}
-              }
-            },
-            onStateChange: function (e) {
-              // YT.PlayerState: PLAYING===1, PAUSED===2, ENDED===0
-              if (e.data === 1) {
-                setPlayIcon(true);
-                elPlayer.classList.add('is-live');
-                render();
-              } else if (e.data === 2) {
-                setPlayIcon(false);
-              } else if (e.data === 0) {
-                loadTrack(playIndex + 1, true);
-              }
-            },
-            // A track that turns out to be unplayable (e.g. embedding
-            // disabled) shouldn't stall the radio — skip to the next one.
-            onError: function () {
-              loadTrack(playIndex + 1, true);
-            },
-          },
-        });
-      }
-
-      window.onYouTubeIframeAPIReady = function () { mountYouTube(); };
-      ensureYouTubeScript();
-
-      // cueVideoById/loadVideoById on a single video ID — the standard,
-      // reliable YT IFrame API calls (unlike the playlist-array methods,
-      // which silently no-op when passed the wrong argument shape).
-      function loadTrack(idx, autoplay) {
-        if (!embedController || !YT_IDS.length) return;
-        playIndex = ((idx % YT_IDS.length) + YT_IDS.length) % YT_IDS.length;
-        render();
-        try {
-          if (autoplay) {
-            armWatchdog();
-            embedController.loadVideoById(YT_IDS[playIndex]);
-          } else {
-            embedController.cueVideoById(YT_IDS[playIndex]);
-          }
-        } catch (e) {}
-      }
-
-      function togglePlay() {
-        if (embedController && embedReady) {
-          try {
-            const state = embedController.getPlayerState && embedController.getPlayerState();
-            if (state === 1) {
-              embedController.pauseVideo();
-            } else {
-              armWatchdog();
-              embedController.playVideo();
-            }
-          } catch (e) {}
-          return;
-        }
-        // Embed hasn't finished bootstrapping yet (slow connection) — queue
-        // the intent and let onReady honor it the instant it can.
-        pendingPlay = true;
-        if (window.YT && window.YT.Player) mountYouTube();
-        else ensureYouTubeScript();
-      }
-
-      function stepTrack(delta) {
-        if (!embedController) { render(); return; }
-        loadTrack(playIndex + delta, true);
-      }
-
-      elPlay && elPlay.addEventListener('click', togglePlay);
-      elArt && elArt.addEventListener('click', togglePlay);
-
-      elPrev && elPrev.addEventListener('click', function () {
-        userOffsetTracks -= 1;
-        stepTrack(-1);
-      });
-      elNext && elNext.addEventListener('click', function () {
-        userOffsetTracks += 1;
-        stepTrack(1);
-      });
-
-      render();
-      setInterval(function () {
-        // Self-heal: trust the embed's own reported state over our cached
-        // flag every tick, since a missed/late onStateChange event
-        // (buffering hiccups, ad breaks) would otherwise leave the play
-        // icon and progress bar showing something that doesn't match
-        // reality -- exactly the "play icon says playing, bar is moving,
-        // no sound" desync.
-        if (embedController && embedController.getPlayerState) {
-          let state;
-          try { state = embedController.getPlayerState(); } catch (e) { state = null; }
-          if (state !== null) {
-            const reallyPlaying = state === 1;
-            if (reallyPlaying !== embedIsPlaying) setPlayIcon(reallyPlaying);
-          }
-        }
-        render();
-      }, 1000);
-
-      /* Presence */
-      const KEY = 'parlour_sid';
-      function makeSid() {
-        try {
-          const buf = new Uint8Array(16);
-          crypto.getRandomValues(buf);
-          return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
-        } catch {
-          return String(Math.random()).slice(2) + String(Date.now());
-        }
-      }
-      let sid;
-      try {
-        sid = localStorage.getItem(KEY);
-        if (!sid) {
-          sid = makeSid();
-          localStorage.setItem(KEY, sid);
-        }
-      } catch {
-        sid = makeSid();
-      }
-
-      async function ping(leaving) {
-        try {
-          if (leaving && navigator.sendBeacon) {
-            const blob = new Blob([JSON.stringify({ sessionId: sid, leaving: true })], {
-              type: 'application/json',
-            });
-            navigator.sendBeacon('/api/presence', blob);
-            return;
-          }
-          const res = await fetch('/api/presence', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ sessionId: sid }),
-            keepalive: true,
-          });
-          const data = await res.json();
-          if (typeof data.count === 'number' && elCount) {
-            elCount.textContent = String(Math.max(1, data.count));
-          }
-        } catch {}
-      }
-
-      ping(false);
-      setInterval(function () { ping(false); }, 12_000);
-      window.addEventListener('pagehide', function () { ping(true); });
-      document.addEventListener('visibilitychange', function () {
-        if (document.visibilityState === 'visible') ping(false);
-      });
-    })();
-  </script>
+  <script src="/player.js" defer is:inline></script>
 </Layout>
 
 <style>
@@ -637,9 +307,13 @@ const clientConfig = {
   .player .row {
     display: grid;
     grid-template-columns: 64px 1fr auto;
+    grid-template-areas: "art meta controls";
     align-items: center;
     gap: 0.9rem;
   }
+  .art { grid-area: art; }
+  .meta { grid-area: meta; }
+  .controls { grid-area: controls; }
   /* The YouTube iframe is mounted for audio playback only — it must stay
    * out of view (not display:none, or some browsers pause it). */
   .embed {
@@ -680,22 +354,28 @@ const clientConfig = {
   }
 
   .meta { min-width: 0; }
+  /* Wrap instead of single-line-ellipsis-truncate -- a two-line clamp only
+     kicks in for genuinely long titles, so most tracks show their full
+     name instead of getting cut short with "...". */
   .track {
     font-family: var(--font-serif);
     font-size: 1.05rem;
-    line-height: 1.15;
+    line-height: 1.22;
     letter-spacing: 0.01em;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
   }
   .artist {
-    font-size: 0.78rem;
+    font-size: 0.82rem;
+    line-height: 1.3;
     color: var(--cream-dim);
     margin-top: 0.15rem;
-    white-space: nowrap;
+    display: -webkit-box;
+    -webkit-line-clamp: 1;
+    -webkit-box-orient: vertical;
     overflow: hidden;
-    text-overflow: ellipsis;
   }
 
   .progress { margin-top: 0.45rem; }
@@ -731,8 +411,8 @@ const clientConfig = {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 44px;
+    height: 44px;
     border-radius: 999px;
     color: var(--cream);
     opacity: 0.85;
@@ -741,8 +421,8 @@ const clientConfig = {
   .ctl:hover { opacity: 1; background: rgba(246, 234, 211, 0.12); }
   .ctl:active { transform: scale(0.96); }
   .ctl-play {
-    width: 40px;
-    height: 40px;
+    width: 48px;
+    height: 48px;
     background: rgba(246, 234, 211, 0.9);
     color: var(--maroon-deep);
     opacity: 1;
@@ -751,24 +431,39 @@ const clientConfig = {
   .ctl-play:hover { background: var(--cream); }
   .ctl-play .icon.is-hidden { display: none; }
 
-  @media (max-width: 480px) {
+  /* Below tablet width, the old single-row "art | title | controls" grid
+     squeezed the title/artist column so hard that even short names got
+     ellipsis-truncated. Stack the playback controls onto their own
+     full-width row instead, so the title/artist get almost the whole
+     card's width to breathe -- and bump the type scale up, not down,
+     since there's now room for it. */
+  @media (max-width: 640px) {
     .topbar { padding: 0.9rem 1rem; }
-    .playlist-link span:not(.arrow) { display: inline; }
-    .links { gap: 0.9rem; }
+    .links { gap: 0.7rem; }
     .player {
-      grid-template-columns: 52px 1fr auto;
-      gap: 0.7rem;
-      padding: 0.6rem 0.75rem;
-      bottom: 0.9rem;
+      width: calc(100% - 1.6rem);
+      padding: 0.8rem 0.9rem 0.75rem;
+      bottom: 0.8rem;
+      border-radius: 16px;
     }
-    .art { width: 52px; height: 52px; }
-    .art-glyph { font-size: 1.55rem; }
-    .track { font-size: 0.98rem; }
-    .ctl { width: 30px; height: 30px; }
-    .ctl-play { width: 36px; height: 36px; }
+    .player .row {
+      grid-template-columns: 56px 1fr;
+      grid-template-areas:
+        "art meta"
+        "controls controls";
+      column-gap: 0.8rem;
+      row-gap: 0.7rem;
+    }
+    .art { width: 56px; height: 56px; }
+    .track { font-size: 1.12rem; line-height: 1.25; }
+    .artist { font-size: 0.88rem; }
+    .times { font-size: 0.74rem; }
+    .controls { justify-content: center; gap: 0.9rem; }
+    .ctl { width: 46px; height: 46px; }
+    .ctl-play { width: 52px; height: 52px; }
   }
 
-  @media (max-width: 360px) {
+  @media (max-width: 400px) {
     .playlist-link span:not(.arrow) { display: none; }
     .playlist-link .arrow { display: none; }
   }

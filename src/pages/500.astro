@@ -5,12 +5,12 @@ import heroJpg from '~/assets/hero.jpg';
 import heroMobile from '~/assets/hero-mobile.webp';
 import heroMobileJpg from '~/assets/hero-mobile.jpg';
 
-// Static content — prerender so Cloudflare serves it as the assets-layer
-// 404 fallback (see wrangler.jsonc `not_found_handling`) without a Worker
-// invocation.
+// Static content — Astro's App renders this pre-rendered page for any
+// unhandled server error (see node_modules/astro/dist/core/app/index.js),
+// so it works without needing a live SSR route.
 export const prerender = true;
 ---
-<Layout title="Not found — Khoobsurati" description="This chair’s empty. Head back to the parlour.">
+<Layout title="Something broke — Khoobsurati" description="The lights went out backstage. Give it a moment and try again.">
   <main class="stage">
     <picture class="bg">
       <source srcset={heroMobile.src} type="image/webp" media="(max-width: 760px)" />
@@ -30,9 +30,9 @@ export const prerender = true;
     <div class="veil" aria-hidden="true"></div>
 
     <section class="panel" role="alert">
-      <div class="code">404</div>
-      <h1 class="line1">यह कुर्सी खाली है</h1>
-      <p class="line2">This chair’s empty. The stylist is on chai break.</p>
+      <div class="code">500</div>
+      <h1 class="line1">बत्ती गुल है</h1>
+      <p class="line2">The power's out backstage. Give it a moment and try again.</p>
       <a class="back" href="/">← back to the parlour</a>
     </section>
   </main>

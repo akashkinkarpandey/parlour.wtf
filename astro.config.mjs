@@ -12,6 +12,12 @@ export default defineConfig({
   integrations: [sitemap()],
   prefetch: false,
   compressHTML: true,
+  build: {
+    // Keep CSS as external, hashed files (never inlined into HTML) so the
+    // Content-Security-Policy can require style-src 'self' without
+    // 'unsafe-inline'.
+    inlineStylesheets: 'never',
+  },
   vite: {
     build: {
       cssMinify: true,

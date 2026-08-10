@@ -69,11 +69,13 @@ export const site = {
       youtubeId: 'whIiIMiIic4',
     },
     {
-      title: 'Kuch Kuch Hota Hai',
-      artist: 'Udit Narayan, Alka Yagnik',
-      durationSec: 5 * 60 + 25,
-      href: 'https://open.spotify.com/track/1Ck4dQvCyfPFqBQdrx1V4A',
-      youtubeId: 'xnGcDsNu5DA',
+      // Swapped from "Kuch Kuch Hota Hai" — its YouTube ID only played a
+      // 7-second clip, not the full song.
+      title: 'Tujhe Dekha To',
+      artist: 'Lata Mangeshkar, Kumar Sanu',
+      durationSec: 5 * 60 + 2,
+      href: 'https://open.spotify.com/track/6dFQ3W3xuG4ll7cNjIsN2Q',
+      youtubeId: 'cNV5hLSa9H8',
     },
     {
       title: 'Chura Ke Dil Mera',

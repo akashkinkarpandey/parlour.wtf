@@ -29,6 +29,14 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="icon" type="image/png" sizes="192x192" href="/icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="/icon-512.png" />
+
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content={site.name} />
 
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content={site.name} />
@@ -70,6 +78,7 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
   <body>
     <slot />
   </body>
+  <script src="/sw-register.js" defer is:inline></script>
 </html>
 <style is:global>
   :root {
@@ -123,6 +132,14 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
   ::selection {
     background: var(--gold);
     color: var(--maroon-deep);
+  }
+
+  /* Visible, high-contrast keyboard focus ring against the dark theme --
+     the default browser outline is easy to lose against --bg/--maroon. */
+  :focus-visible {
+    outline: 2px solid var(--gold);
+    outline-offset: 2px;
+    border-radius: 4px;
   }
 
   @media (prefers-reduced-motion: reduce) {
