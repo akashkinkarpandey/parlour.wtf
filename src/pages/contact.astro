@@ -1,0 +1,34 @@
+---
+import LegalLayout from '~/layouts/LegalLayout.astro';
+import { site } from '~/config/site';
+
+export const prerender = true;
+---
+
+<LegalLayout
+  title={`Contact — ${site.name}`}
+  description="Get in touch with Khoobsurati — song corrections, broken links, privacy questions, or just to say hello."
+>
+  <h1>Contact</h1>
+
+  <p>
+    Khoobsurati is a one-person project, so there's no support ticket system
+    — just email. Reach out for any of these:
+  </p>
+
+  <ul>
+    <li>A wrong song title, artist, or a broken playback link</li>
+    <li>Copyright or takedown concerns about a specific track</li>
+    <li>Questions about the <a href="/privacy">Privacy Policy</a> or your data</li>
+    <li>Anything else — feedback, bugs, or just to say the chai's good</li>
+  </ul>
+
+  <a class="mail-chip" href={`mailto:${site.contactEmail}`}>
+    ✉ {site.contactEmail}
+  </a>
+
+  <p>
+    Replies usually take a few days — this is a hobby project, not a
+    business with a support desk.
+  </p>
+</LegalLayout>

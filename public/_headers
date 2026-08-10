@@ -9,9 +9,21 @@
   Cross-Origin-Opener-Policy: same-origin
   Cross-Origin-Resource-Policy: same-origin
   Permissions-Policy: camera=(), microphone=(), geolocation=(), payment=(), usb=(), bluetooth=(), midi=(), magnetometer=(), gyroscope=(), accelerometer=(), display-capture=(), screen-wake-lock=(), xr-spatial-tracking=(), interest-cohort=(), browsing-topics=()
-  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.youtube.com; img-src 'self' data: https://i.ytimg.com; connect-src 'self'; frame-src https://www.youtube.com; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
+  Content-Security-Policy: default-src 'self'; base-uri 'self'; object-src 'none'; script-src 'self' https://www.youtube.com https://www.googletagmanager.com; img-src 'self' data: https://i.ytimg.com; connect-src 'self' https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://www.googletagmanager.com; frame-src https://www.youtube.com; frame-ancestors 'none'; form-action 'self'; upgrade-insecure-requests
 
 /
+  Cache-Control: public, max-age=300, must-revalidate
+
+/about
+  Cache-Control: public, max-age=300, must-revalidate
+
+/privacy
+  Cache-Control: public, max-age=300, must-revalidate
+
+/terms
+  Cache-Control: public, max-age=300, must-revalidate
+
+/contact
   Cache-Control: public, max-age=300, must-revalidate
 
 /500
@@ -48,6 +60,14 @@
   Content-Type: application/javascript; charset=utf-8
 
 /sw-register.js
+  Cache-Control: no-cache
+  Content-Type: application/javascript; charset=utf-8
+
+/ga.js
+  Cache-Control: no-cache
+  Content-Type: application/javascript; charset=utf-8
+
+/nav.js
   Cache-Control: no-cache
   Content-Type: application/javascript; charset=utf-8
 

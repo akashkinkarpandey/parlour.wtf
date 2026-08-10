@@ -34,6 +34,13 @@ export const site = {
     'A ladies’ parlour, a chai, and 90s Bollywood on the radio. Beauty from within and without.',
   ogImage: '/og.jpg',
 
+  /** Published on Contact/Privacy/Terms for inquiries and legal notices. */
+  contactEmail: 'akashkinkarpandey@gmail.com',
+
+  /** Google Analytics 4 measurement ID. Kept in sync with public/ga.js
+   * (a static file — see the Astro inline-script CSP note in Layout.astro). */
+  gaId: 'G-0C9JYKP0XH',
+
   // Curated playlists. Replace with your own once you’ve built them.
   spotifyPlaylistUrl:
     'https://open.spotify.com/playlist/37i9dQZF1DX0XUfTFmNBRM',

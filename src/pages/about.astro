@@ -1,0 +1,58 @@
+---
+import LegalLayout from '~/layouts/LegalLayout.astro';
+import { site } from '~/config/site';
+
+// Static content — no per-request logic — so it's served straight from
+// Cloudflare's edge assets layer with zero Worker invocation.
+export const prerender = true;
+---
+
+<LegalLayout
+  title={`About — ${site.name}`}
+  description="Why Khoobsurati exists: a small, independent 90s Bollywood radio built to feel like the neighbourhood parlour."
+>
+  <h1>About Khoobsurati</h1>
+
+  <p>
+    Every neighbourhood parlour had the same radio, tuned to the same station,
+    playing the same handful of 90s Bollywood songs on loop — background
+    music for head massages, mehndi, and gossip over chai. Khoobsurati
+    (<em>खूबसूरती</em>) tries to rebuild that exact feeling: one curated
+    playlist, always playing, no menu to browse.
+  </p>
+
+  <h2>What it is</h2>
+  <p>
+    A single looping playlist of 90s Bollywood tracks that plays in your
+    browser, with the same songs also linked out to
+    <a href={site.spotifyPlaylistUrl} target="_blank" rel="noopener noreferrer">Spotify</a> and
+    <a href={site.ytMusicPlaylistUrl} target="_blank" rel="noopener noreferrer">YouTube Music</a>
+    if you'd rather listen there. The "online now" counter is a small
+    illusion — everyone who has the page open right now is, roughly, hearing
+    the same song at the same time, like a shared radio station rather than
+    separate on-demand streams.
+  </p>
+
+  <h2>What it isn't</h2>
+  <p>
+    Khoobsurati isn't a company, a streaming service, or a business. There's
+    no sign-up, no account, no algorithm, and nothing for sale. It's a small,
+    independent hobby project built and maintained by one person who missed
+    this specific kind of background noise.
+  </p>
+
+  <h2>Rights &amp; credit</h2>
+  <p>
+    Khoobsurati doesn't host any audio itself — playback happens through
+    YouTube's own embedded player, and the playlist links point to Spotify
+    and YouTube Music. All songs, artists, film titles, and album art belong
+    to their respective rights holders. See the
+    <a href="/terms">Terms &amp; Conditions</a> for details.
+  </p>
+
+  <h2>Questions</h2>
+  <p>
+    Found a wrong song, a broken link, or just want to say the chai's good?
+    <a href="/contact">Get in touch</a>.
+  </p>
+</LegalLayout>

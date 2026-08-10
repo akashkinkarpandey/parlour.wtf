@@ -25,6 +25,7 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
     <meta name="theme-color" content="#2b120c" />
     <title>{title}</title>
     <meta name="description" content={description} />
+    <meta name="robots" content="index, follow" />
     <link rel="canonical" href={url} />
 
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
@@ -63,6 +64,16 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
       href="https://music.youtube.com"
       crossorigin
     />
+    <link
+      rel="preconnect"
+      href="https://www.googletagmanager.com"
+      crossorigin
+    />
+    <link
+      rel="preconnect"
+      href="https://www.google-analytics.com"
+      crossorigin
+    />
 
     <link rel="sitemap" href="/sitemap-index.xml" />
 
@@ -73,7 +84,14 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
       url: `https://${site.domain}`,
       description: site.description,
       inLanguage: ['en', 'hi'],
+      sameAs: [site.spotifyPlaylistUrl, site.ytMusicPlaylistUrl],
     })} />
+
+    <!-- Google tag (gtag.js) — kept as real static-file <script src> tags
+         (not inline) so the strict CSP (script-src, no 'unsafe-inline')
+         still applies. See public/ga.js. -->
+    <script async src={`https://www.googletagmanager.com/gtag/js?id=${site.gaId}`} is:inline></script>
+    <script src="/ga.js" defer is:inline></script>
   </head>
   <body>
     <slot />

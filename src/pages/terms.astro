@@ -1,0 +1,117 @@
+---
+import LegalLayout from '~/layouts/LegalLayout.astro';
+import { site } from '~/config/site';
+
+export const prerender = true;
+---
+
+<LegalLayout
+  title={`Terms & Conditions — ${site.name}`}
+  description="The terms for using Khoobsurati — a free, no-account 90s Bollywood playlist site."
+>
+  <h1>Terms &amp; Conditions</h1>
+  <p class="updated">Last updated: August 10, 2026</p>
+
+  <h2>1. Agreement</h2>
+  <p>
+    By using <strong>{site.domain}</strong>, you agree to these Terms. If you
+    don't agree, please don't use the site. See also our
+    <a href="/privacy">Privacy Policy</a>.
+  </p>
+
+  <h2>2. The service</h2>
+  <p>
+    Khoobsurati is a free, curated, looping playlist of 90s Bollywood songs,
+    played in-browser via an embedded YouTube player, with links out to the
+    same playlist on Spotify and YouTube Music. It's a hobby project, not a
+    commercial streaming service, and it doesn't compete with or replace
+    licensed music platforms.
+  </p>
+
+  <h2>3. Eligibility</h2>
+  <p>
+    Khoobsurati is intended for a general audience. If the law where you
+    live requires a parent or guardian's permission for you to agree to
+    website terms on your own, please use the site with that permission.
+  </p>
+
+  <h2>4. No accounts</h2>
+  <p>
+    No sign-up or account is required or offered. There's nothing to secure
+    and no personal profile stored, so there's no account-security section
+    here to worry about.
+  </p>
+
+  <h2>5. Acceptable use</h2>
+  <p>Please don't:</p>
+  <ul>
+    <li>Scrape, crawl, or automate requests to the site beyond normal browsing (including hammering the "online now" endpoint)</li>
+    <li>Attempt to bypass, disable, or interfere with the site's security measures</li>
+    <li>Use the site for anything illegal, or in a way that disrupts it for other listeners</li>
+  </ul>
+
+  <h2>6. Content &amp; rights</h2>
+  <p>
+    Khoobsurati doesn't host, sell, or redistribute any audio itself. Playback
+    happens entirely through YouTube's own embedded player, subject to
+    <a href="https://www.youtube.com/t/terms" target="_blank" rel="noopener noreferrer">YouTube's Terms of Service</a>,
+    and the playlist links point to Spotify and YouTube Music, each subject
+    to their own terms. All song titles, recordings, artist names, film
+    titles, and album artwork remain the property of their respective rights
+    holders. The site's design, code, and curation are the operator's.
+  </p>
+
+  <h2>7. Copyright concerns</h2>
+  <p>
+    Since no media is hosted on {site.domain} itself, concerns about a
+    specific recording should go to YouTube or Spotify directly. For
+    anything about the site itself (a link that shouldn't be there, etc.),
+    email <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>.
+  </p>
+
+  <h2>8. Third-party services</h2>
+  <p>
+    The site relies on YouTube (playback embed), Spotify and YouTube Music
+    (external playlist links), Google Analytics, Cloudflare, and Upstash —
+    each governed by its own terms and privacy policy, linked in the
+    <a href="/privacy">Privacy Policy</a>.
+  </p>
+
+  <h2>9. No warranty</h2>
+  <p>
+    The site is provided free of charge, "as is" and "as available," on a
+    best-effort basis, with no guarantee of uptime, availability, or that
+    playback will always work. Features — including the "online now" counter
+    — may change, break, or be discontinued at any time without notice.
+  </p>
+
+  <h2>10. Limitation of liability</h2>
+  <p>
+    To the maximum extent permitted by law, the operator isn't liable for
+    any damages arising from your use of, or inability to use, the site.
+    Some jurisdictions don't allow the exclusion or limitation of certain
+    warranties or liabilities — in those cases, this limitation applies only
+    to the extent the law allows.
+  </p>
+
+  <h2>11. Changes to these terms</h2>
+  <p>
+    These Terms may be updated from time to time; changes will be posted
+    here with a new "Last updated" date. Continued use of the site after
+    changes are posted means you accept the revised Terms.
+  </p>
+
+  <h2>12. Governing law</h2>
+  <p>
+    These Terms are governed by the laws of the jurisdiction in which the
+    operator resides, without regard to conflict-of-laws principles. Where a
+    dispute can't be brought there, both parties consent to the courts with
+    jurisdiction over the operator as the alternate forum.
+  </p>
+
+  <h2>13. Contact</h2>
+  <p>
+    Questions about these Terms:
+    <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>.
+  </p>
+</LegalLayout>

@@ -1,0 +1,187 @@
+---
+import LegalLayout from '~/layouts/LegalLayout.astro';
+import { site } from '~/config/site';
+
+export const prerender = true;
+---
+
+<LegalLayout
+  title={`Privacy Policy — ${site.name}`}
+  description="What Khoobsurati collects (very little), what it doesn't, and how the shared 'online now' counter and analytics work."
+>
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: August 10, 2026</p>
+
+  <h2>1. Who we are</h2>
+  <p>
+    Khoobsurati (<strong>{site.domain}</strong>) is an independent, one-person
+    hobby project — a 90s Bollywood internet radio built to feel like a
+    neighbourhood ladies' parlour. It isn't a company. Questions about this
+    policy can go to <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>.
+  </p>
+
+  <h2>2. What Khoobsurati does</h2>
+  <p>
+    The site plays a curated, looping playlist of 90s Bollywood songs in your
+    browser, and links out to the same playlist on Spotify and YouTube Music.
+    No account or sign-up exists or is ever required.
+  </p>
+
+  <h2>3. Information we collect</h2>
+  <h3>What we don't collect</h3>
+  <ul>
+    <li>No accounts, no passwords, no user profiles</li>
+    <li>No payment information — nothing is for sale</li>
+    <li>No contact lists, address books, or precise location</li>
+    <li>No forms that collect personal data (the Contact page is a plain email link, not a form)</li>
+  </ul>
+
+  <h3>The "online now" counter</h3>
+  <p>
+    While the page is open, your browser generates a random, disposable
+    session ID — not tied to your identity in any way — and pings our
+    server every few seconds so the page can show roughly how many people
+    are listening right now. That ID lives in a small database
+    (<a href="https://upstash.com/privacy" target="_blank" rel="noopener noreferrer">Upstash Redis</a>)
+    for at most about two minutes and then expires automatically. It's never
+    linked to who you are, never used for anything beyond the live count, and
+    isn't shared with anyone.
+  </p>
+
+  <h3>Analytics</h3>
+  <p>
+    We use Google Analytics (GA4) to understand, in aggregate, how many
+    people visit and roughly where from. It collects page views, approximate
+    location (city/region level, derived from IP address), device and
+    browser type, and the site that referred you — never your name, email,
+    or anything that identifies you individually.
+  </p>
+
+  <h2>4. How we use this information</h2>
+  <p>
+    Solely to (a) keep the shared "listening room" counter running, and (b)
+    understand, in aggregate, whether the station is worth keeping running.
+    We don't sell data, run ads, or share anything with data brokers —
+    there's nothing to sell in the first place.
+  </p>
+
+  <h2>5. Cookies</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Cookie</th>
+          <th>Purpose</th>
+          <th>Duration</th>
+          <th>Opt out</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><code>_ga</code>, <code>_ga_*</code></td>
+          <td>Google Analytics — aggregate usage measurement</td>
+          <td>Up to 2 years</td>
+          <td>
+            <a href="https://tools.google.com/dlpage/gaoptout" target="_blank" rel="noopener noreferrer">GA opt-out add-on</a>
+            or block third-party cookies in your browser
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p>
+    No advertising or cross-site tracking cookies are used. We don't
+    currently respond to browser "Do Not Track" signals, since the only
+    tracking on the site is the aggregate analytics above.
+  </p>
+
+  <h2>6. Third-party processors</h2>
+  <div class="table-wrap">
+    <table>
+      <thead>
+        <tr>
+          <th>Provider</th>
+          <th>Purpose</th>
+          <th>Policy</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td>Cloudflare</td>
+          <td>Hosting, edge delivery, security</td>
+          <td><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a></td>
+        </tr>
+        <tr>
+          <td>Upstash</td>
+          <td>Redis database for the "online now" counter</td>
+          <td><a href="https://upstash.com/privacy" target="_blank" rel="noopener noreferrer">upstash.com/privacy</a></td>
+        </tr>
+        <tr>
+          <td>Google Analytics</td>
+          <td>Aggregate usage analytics</td>
+          <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">policies.google.com/privacy</a></td>
+        </tr>
+        <tr>
+          <td>YouTube</td>
+          <td>In-page audio playback (embedded player)</td>
+          <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">policies.google.com/privacy</a></td>
+        </tr>
+        <tr>
+          <td>Spotify</td>
+          <td>External playlist link (opens on spotify.com)</td>
+          <td><a href="https://www.spotify.com/legal/privacy-policy/" target="_blank" rel="noopener noreferrer">spotify.com/legal/privacy-policy</a></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2>7. Data retention</h2>
+  <ul>
+    <li><strong>"Online now" session IDs</strong> — auto-expire after roughly two minutes of inactivity; not kept beyond that</li>
+    <li><strong>Analytics data</strong> — retained per Google Analytics' standard aggregate-data window</li>
+    <li><strong>Server logs</strong> — we don't keep our own; Cloudflare's standard operational logs apply per their policy above</li>
+  </ul>
+
+  <h2>8. Your rights</h2>
+  <p>
+    Because Khoobsurati doesn't hold a personal profile tied to you, there is
+    usually nothing on file to access, correct, or delete beyond your
+    analytics footprint. If you're in the EEA/UK, you have rights under GDPR
+    (access, erasure, objection, and more); if you're in California, you have
+    rights under the CCPA (know, delete, opt out of sale — and to be clear,
+    <strong>we do not sell personal information</strong>). To exercise any of
+    these, email <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>
+    and we'll respond within 30 days.
+  </p>
+
+  <h2>9. International transfers</h2>
+  <p>
+    The site runs on Cloudflare's global edge network, so requests may be
+    processed in different countries as part of normal internet routing.
+  </p>
+
+  <h2>10. Children</h2>
+  <p>
+    Khoobsurati isn't directed at children under 13, and we don't knowingly
+    collect information from them.
+  </p>
+
+  <h2>11. Security</h2>
+  <p>
+    The site is served over HTTPS with strict security headers (a locked-down
+    Content-Security-Policy, HSTS, and related protections). Since there are
+    no accounts, there are no passwords or credentials to leak.
+  </p>
+
+  <h2>12. Changes</h2>
+  <p>
+    If this policy changes materially, we'll update it here with a new "Last
+    updated" date above.
+  </p>
+
+  <h2>13. Contact</h2>
+  <p>
+    Questions about this policy or your data:
+    <a href={`mailto:${site.contactEmail}`}>{site.contactEmail}</a>.
+  </p>
+</LegalLayout>
