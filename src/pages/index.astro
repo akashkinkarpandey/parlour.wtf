@@ -9,22 +9,17 @@ import { site } from '~/config/site';
 
 export const prerender = false;
 
-function ytPlaylistId(url: string): string | null {
-  const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
-  return m ? m[1] : null;
-}
-
 // Serialize the small subset the client needs, so we ship no more than needed.
 const clientConfig = {
   epochStart: site.epochStart,
   spotify: site.spotifyPlaylistUrl,
   ytmusic: site.ytMusicPlaylistUrl,
-  ytPlaylistId: ytPlaylistId(site.youtubePlaylistUrl),
   tracks: site.tracks.map((t) => ({
     title: t.title,
     artist: t.artist,
     durationSec: t.durationSec,
     href: t.href ?? site.spotifyPlaylistUrl,
+    youtubeId: t.youtubeId,
   })),
 };
 ---
@@ -150,9 +145,11 @@ const clientConfig = {
       let embedController = null;
       let embedReady = false;
       let embedIsPlaying = false;
-      // Pending track index the user has queued via play/prev/next
-      // while the embed API is still bootstrapping.
-      let pendingIndex = -1;
+      // Set when the user hits play before the embed has finished
+      // bootstrapping, so we can honor it the moment it's ready.
+      let pendingPlay = false;
+      // Index into YT_IDS of whatever's actually loaded in the embed.
+      let playIndex = 0;
 
       function fmt(sec) {
         sec = Math.max(0, Math.floor(sec));
@@ -181,7 +178,9 @@ const clientConfig = {
         return (cur.i + userOffsetTracks + tracks.length * 1000) % tracks.length;
       }
 
-      const YT_LIST = cfg.ytPlaylistId || '';
+      // Verified per-track video IDs, in the same order as `tracks` — not an
+      // external playlist, so what plays always matches the title/artist.
+      const YT_IDS = tracks.map(function (t) { return t.youtubeId; }).filter(Boolean);
 
       function setPlayIcon(isPlaying) {
         embedIsPlaying = isPlaying;
@@ -190,6 +189,13 @@ const clientConfig = {
           iconPause.classList.toggle('is-hidden', !isPlaying);
         }
         elPlay.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+      }
+
+      // Once real audio is actually confirmed playing, stop faking progress
+      // off the epoch — showing both would desync/lie to the user. Stays
+      // hidden even through a later pause; we don't revert to ambient mode.
+      function hideFakeProgress() {
+        if (elProgress) elProgress.style.display = 'none';
       }
 
       function render() {
@@ -201,15 +207,30 @@ const clientConfig = {
         elTitle.textContent = t.title;
         elArtist.textContent = t.artist;
         elTotal.textContent = fmt(t.durationSec);
-        // When the Spotify embed is driving playback, its own scrubber shows
-        // real progress — hide our fake one so we don't lie to the user.
-        if (embedController) {
-          if (elProgress) elProgress.style.display = 'none';
+        if (embedIsPlaying) {
+          hideFakeProgress();
         } else {
           const into = isNow ? cur.into : 0;
           elElapsed.textContent = fmt(into);
           const pct = Math.min(100, Math.max(0, (into / t.durationSec) * 100));
           elBar.style.width = pct + '%';
+        }
+      }
+
+      // While real audio is playing, the displayed title/artist must come
+      // from the actual video — the epoch-based `tracks` list only estimates
+      // what "should" be on now and can drift out of sync with whatever
+      // YouTube is really playing (wrong song name against real audio).
+      function refreshFromEmbed(attempt) {
+        if (!embedController || !embedController.getVideoData) return;
+        let d;
+        try { d = embedController.getVideoData(); } catch (e) { return; }
+        if (d && d.title) {
+          elTitle.textContent = d.title;
+          elArtist.textContent = d.author || ' ';
+        } else if ((attempt || 0) < 5) {
+          // Metadata isn't populated yet right as playback starts — retry briefly.
+          setTimeout(function () { refreshFromEmbed((attempt || 0) + 1); }, 400);
         }
       }
 
@@ -224,64 +245,96 @@ const clientConfig = {
         document.head.appendChild(s);
       }
 
+      // Bootstrap the embed as soon as the page loads (not on first click) so
+      // that by the time the user actually presses play, the player already
+      // exists and playVideo() runs synchronously inside the click handler.
+      // Calling playVideo() only after an async script-load + player-init
+      // chain breaks the browser's "direct user gesture" association, which
+      // silently blocks audio — that's the "bar moves, no sound" bug.
       function mountYouTube() {
-        if (!YT_LIST || !elEmbedMount || embedController) return;
+        if (!YT_IDS.length || !elEmbedMount || embedController) return;
         elEmbedMount.innerHTML = '';
         const holder = document.createElement('div');
         holder.id = 'yt-player';
         elEmbedMount.appendChild(holder);
-        elPlayer.classList.add('is-live');
-        setPlayIcon(true);
         embedController = new window.YT.Player('yt-player', {
           width: '100%',
           height: '100%',
           playerVars: {
-            listType: 'playlist',
-            list: YT_LIST,
-            autoplay: 1,
+            autoplay: 0,
             playsinline: 1,
             modestbranding: 1,
             rel: 0,
           },
           events: {
-            onReady: function (e) {
+            onReady: function () {
               embedReady = true;
-              try { e.target.playVideo(); } catch (err) {}
+              // Silently cue (not play) whatever track the shared clock
+              // currently points at, so the first real playVideo() has
+              // something already loaded to act on.
+              try { embedController.cueVideoById(YT_IDS[activeIndex()]); } catch (e) {}
+              playIndex = activeIndex();
+              if (pendingPlay) {
+                pendingPlay = false;
+                try { embedController.playVideo(); } catch (e) {}
+              }
             },
             onStateChange: function (e) {
-              // YT.PlayerState.PLAYING === 1, PAUSED === 2
-              if (e.data === 1) setPlayIcon(true);
-              else if (e.data === 2) setPlayIcon(false);
+              // YT.PlayerState: PLAYING===1, PAUSED===2, ENDED===0
+              if (e.data === 1) {
+                setPlayIcon(true);
+                elPlayer.classList.add('is-live');
+                hideFakeProgress();
+                refreshFromEmbed();
+              } else if (e.data === 2) {
+                setPlayIcon(false);
+              } else if (e.data === 0) {
+                loadTrack(playIndex + 1, true);
+              }
+            },
+            // A track that turns out to be unplayable (e.g. embedding
+            // disabled) shouldn't stall the radio — skip to the next one.
+            onError: function () {
+              loadTrack(playIndex + 1, true);
             },
           },
         });
       }
 
       window.onYouTubeIframeAPIReady = function () { mountYouTube(); };
+      ensureYouTubeScript();
 
-      function togglePlay() {
-        if (!embedController) {
-          if (window.YT && window.YT.Player) mountYouTube();
-          else ensureYouTubeScript();
-          return;
-        }
+      // cueVideoById/loadVideoById on a single video ID — the standard,
+      // reliable YT IFrame API calls (unlike the playlist-array methods,
+      // which silently no-op when passed the wrong argument shape).
+      function loadTrack(idx, autoplay) {
+        if (!embedController || !YT_IDS.length) return;
+        playIndex = ((idx % YT_IDS.length) + YT_IDS.length) % YT_IDS.length;
         try {
-          const state = embedController.getPlayerState && embedController.getPlayerState();
-          if (state === 1) embedController.pauseVideo();
-          else embedController.playVideo();
+          if (autoplay) embedController.loadVideoById(YT_IDS[playIndex]);
+          else embedController.cueVideoById(YT_IDS[playIndex]);
         } catch (e) {}
       }
 
-      function stepTrack(delta) {
-        if (!embedController) {
-          if (window.YT && window.YT.Player) mountYouTube();
-          else ensureYouTubeScript();
+      function togglePlay() {
+        if (embedController && embedReady) {
+          try {
+            const state = embedController.getPlayerState && embedController.getPlayerState();
+            if (state === 1) embedController.pauseVideo();
+            else embedController.playVideo();
+          } catch (e) {}
           return;
         }
-        try {
-          if (delta > 0 && embedController.nextVideo) embedController.nextVideo();
-          else if (delta < 0 && embedController.previousVideo) embedController.previousVideo();
-        } catch (e) {}
+        // Embed hasn't finished bootstrapping yet (slow connection) — queue
+        // the intent and let onReady honor it the instant it can.
+        pendingPlay = true;
+        if (window.YT && window.YT.Player) mountYouTube();
+        else ensureYouTubeScript();
+      }
+
+      function stepTrack(delta) {
+        if (!embedController) return;
+        loadTrack(playIndex + delta, true);
       }
 
       elPlay && elPlay.addEventListener('click', togglePlay);
@@ -300,9 +353,9 @@ const clientConfig = {
 
       render();
       setInterval(function () {
-        // Only auto-advance the "now playing" text when the user is watching
-        // the shared radio, not while the Spotify embed is doing its own thing.
-        if (!embedController) render();
+        // Only auto-advance the fake "now playing" clock while real audio
+        // isn't actually confirmed playing yet.
+        if (!embedIsPlaying) render();
       }, 1000);
 
       /* Presence */
