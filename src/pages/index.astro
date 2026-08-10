@@ -344,11 +344,20 @@ const clientConfig = {
     font-size: 0.86rem;
     font-weight: 500;
     letter-spacing: 0.01em;
+    background: linear-gradient(
+      180deg,
+      rgba(58, 15, 17, 0.28) 0%,
+      rgba(42, 10, 12, 0.32) 100%
+    );
+    border-color: rgba(217, 168, 96, 0.16);
+    backdrop-filter: blur(8px) saturate(120%);
+    -webkit-backdrop-filter: blur(8px) saturate(120%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
     transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
   }
   .playlist-link:hover {
     border-color: rgba(217, 168, 96, 0.5);
-    background: linear-gradient(180deg, rgba(74, 20, 22, 0.68) 0%, rgba(52, 14, 16, 0.72) 100%);
+    background: linear-gradient(180deg, rgba(74, 20, 22, 0.55) 0%, rgba(52, 14, 16, 0.58) 100%);
   }
   .arrow { font-size: 0.78rem; opacity: 0.75; }
 
@@ -542,38 +551,35 @@ const clientConfig = {
   .ctl-play:hover { background: var(--cream); }
   .ctl-play .icon.is-hidden { display: none; }
 
-  /* Below tablet width, the old single-row "art | title | controls" grid
-     squeezed the title/artist column so hard that even short names got
-     ellipsis-truncated. Stack the playback controls onto their own
-     full-width row instead, so the title/artist get almost the whole
-     card's width to breathe -- and bump the type scale up, not down,
-     since there's now room for it. */
+  /* Keep the same single-row "art | meta | controls" layout as desktop
+     on mobile too, just scaled down further -- stacking the controls
+     onto their own row (the old approach) roughly doubled the player's
+     height and ate too much of the artwork. The track title still
+     wraps to 2 lines instead of truncating, so a narrower row is safe. */
   @media (max-width: 640px) {
     .topbar { padding: 0.9rem 1rem; }
     .links { gap: 0.7rem; }
     .player {
       width: calc(100% - 1.6rem);
-      padding: 0.65rem 0.75rem 0.6rem;
-      bottom: 0.7rem;
-      border-radius: 13px;
+      padding: 0.45rem 0.6rem;
+      bottom: 0.6rem;
+      border-radius: 10px;
     }
     .player .row {
-      grid-template-columns: 46px 1fr;
-      grid-template-areas:
-        "art meta"
-        "controls controls";
-      column-gap: 0.65rem;
-      row-gap: 0.55rem;
+      grid-template-columns: 38px 1fr auto;
+      grid-template-areas: "art meta controls";
+      column-gap: 0.5rem;
     }
-    .art { width: 46px; height: 46px; }
-    .track { font-size: 0.98rem; line-height: 1.22; }
-    .artist { font-size: 0.76rem; }
-    .times { font-size: 0.66rem; }
-    .controls { justify-content: center; gap: 0.7rem; }
-    .ctl { width: 38px; height: 38px; }
-    .ctl svg { width: 16px; height: 16px; }
-    .ctl-play { width: 43px; height: 43px; }
-    .ctl-play svg { width: 18px; height: 18px; }
+    .art { width: 38px; height: 38px; border-radius: 5px; }
+    .track { font-size: 0.82rem; line-height: 1.18; }
+    .artist { font-size: 0.62rem; }
+    .progress { margin-top: 0.2rem; }
+    .times { font-size: 0.54rem; margin-top: 0.15rem; }
+    .controls { gap: 0.1rem; }
+    .ctl { width: 28px; height: 28px; }
+    .ctl svg { width: 12px; height: 12px; }
+    .ctl-play { width: 32px; height: 32px; }
+    .ctl-play svg { width: 14px; height: 14px; }
   }
 
   @media (max-width: 400px) {
