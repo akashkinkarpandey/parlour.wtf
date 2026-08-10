@@ -130,7 +130,6 @@ const clientConfig = {
       const elElapsed = $('time-elapsed');
       const elTotal = $('time-total');
       const elBar = $('bar-fill');
-      const elProgress = $('progress');
       const elPlay = $('btn-play');
       const elArt = $('btn-art');
       const elPrev = $('btn-prev');
@@ -145,11 +144,21 @@ const clientConfig = {
       let embedController = null;
       let embedReady = false;
       let embedIsPlaying = false;
+      // Set once real audio has actually been confirmed playing at least
+      // once. From then on the progress bar trusts the embed's own clock
+      // instead of the shared-room simulation -- but unlike before, it
+      // never gets hidden: it just shows the real (possibly paused) time.
+      let realAudioConfirmed = false;
       // Set when the user hits play before the embed has finished
       // bootstrapping, so we can honor it the moment it's ready.
       let pendingPlay = false;
       // Index into YT_IDS of whatever's actually loaded in the embed.
       let playIndex = 0;
+      // Guards against a track that neither errors nor ever reaches
+      // PLAYING (a region block that doesn't fire onError, a stuck ad, a
+      // dead stream) -- without this the UI just sits there silently
+      // forever with the bar "moving" off the ambient clock and no sound.
+      let playWatchdog = null;
 
       function fmt(sec) {
         sec = Math.max(0, Math.floor(sec));
@@ -182,8 +191,32 @@ const clientConfig = {
       // external playlist, so what plays always matches the title/artist.
       const YT_IDS = tracks.map(function (t) { return t.youtubeId; }).filter(Boolean);
 
+      function clearWatchdog() {
+        if (playWatchdog) {
+          clearTimeout(playWatchdog);
+          playWatchdog = null;
+        }
+      }
+
+      // Arms a timer when playback is requested. If PLAYING isn't confirmed
+      // by the time it fires, this track is dead -- skip forward instead of
+      // leaving the ambient clock ticking over silence forever.
+      function armWatchdog() {
+        clearWatchdog();
+        const targetIndex = playIndex;
+        playWatchdog = setTimeout(function () {
+          if (!embedIsPlaying && playIndex === targetIndex) {
+            loadTrack(playIndex + 1, true);
+          }
+        }, 6000);
+      }
+
       function setPlayIcon(isPlaying) {
         embedIsPlaying = isPlaying;
+        if (isPlaying) {
+          realAudioConfirmed = true;
+          clearWatchdog();
+        }
         if (iconPlay && iconPause) {
           iconPlay.classList.toggle('is-hidden', isPlaying);
           iconPause.classList.toggle('is-hidden', !isPlaying);
@@ -191,42 +224,34 @@ const clientConfig = {
         elPlay.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
       }
 
-      // Once real audio is actually confirmed playing, stop faking progress
-      // off the epoch — showing both would desync/lie to the user. Stays
-      // hidden even through a later pause; we don't revert to ambient mode.
-      function hideFakeProgress() {
-        if (elProgress) elProgress.style.display = 'none';
-      }
-
+      // Single source of truth for what's on screen. Once real audio has
+      // ever been confirmed, the embed's own clock drives the bar (accurate,
+      // never disagrees with what's actually audible -- including while
+      // paused). Before that, the shared epoch simulation drives it, so the
+      // "room" still feels alive before anyone presses play.
       function render() {
-        const cur = currentTrack();
-        if (!cur) return;
-        const idx = activeIndex();
+        const idx = realAudioConfirmed ? playIndex : activeIndex();
         const t = tracks[idx];
-        const isNow = userOffsetTracks === 0;
-        elTitle.textContent = t.title;
-        elArtist.textContent = t.artist;
-        elTotal.textContent = fmt(t.durationSec);
-        if (embedIsPlaying) {
-          hideFakeProgress();
-        } else {
-          const into = isNow ? cur.into : 0;
-          elElapsed.textContent = fmt(into);
-          const pct = Math.min(100, Math.max(0, (into / t.durationSec) * 100));
-          elBar.style.width = pct + '%';
-        }
-      }
-
-      // The loaded video is always the exact verified track at `playIndex`
-      // (per-track IDs, not a shared playlist), so the display must come
-      // from our own clean metadata -- never from YouTube's raw video title,
-      // which carries platform cruft like "(Full Video) | Official HD".
-      function renderPlayingTrack() {
-        const t = tracks[playIndex];
         if (!t) return;
         elTitle.textContent = t.title;
         elArtist.textContent = t.artist;
-        elTotal.textContent = fmt(t.durationSec);
+
+        let into = 0;
+        let durationSec = t.durationSec;
+        if (realAudioConfirmed && embedController && embedController.getCurrentTime) {
+          try {
+            into = embedController.getCurrentTime() || 0;
+            durationSec = embedController.getDuration() || t.durationSec;
+          } catch (e) {}
+        } else {
+          const cur = currentTrack();
+          const isNow = userOffsetTracks === 0;
+          into = cur && isNow ? cur.into : 0;
+        }
+        elTotal.textContent = fmt(durationSec);
+        elElapsed.textContent = fmt(into);
+        const pct = Math.min(100, Math.max(0, (into / durationSec) * 100));
+        elBar.style.width = pct + '%';
       }
 
       /* YouTube IFrame API integration — no login gate, and gives us real
@@ -264,13 +289,14 @@ const clientConfig = {
           events: {
             onReady: function () {
               embedReady = true;
+              playIndex = activeIndex();
               // Silently cue (not play) whatever track the shared clock
               // currently points at, so the first real playVideo() has
               // something already loaded to act on.
-              try { embedController.cueVideoById(YT_IDS[activeIndex()]); } catch (e) {}
-              playIndex = activeIndex();
+              try { embedController.cueVideoById(YT_IDS[playIndex]); } catch (e) {}
               if (pendingPlay) {
                 pendingPlay = false;
+                armWatchdog();
                 try { embedController.playVideo(); } catch (e) {}
               }
             },
@@ -279,8 +305,7 @@ const clientConfig = {
               if (e.data === 1) {
                 setPlayIcon(true);
                 elPlayer.classList.add('is-live');
-                hideFakeProgress();
-                renderPlayingTrack();
+                render();
               } else if (e.data === 2) {
                 setPlayIcon(false);
               } else if (e.data === 0) {
@@ -305,9 +330,14 @@ const clientConfig = {
       function loadTrack(idx, autoplay) {
         if (!embedController || !YT_IDS.length) return;
         playIndex = ((idx % YT_IDS.length) + YT_IDS.length) % YT_IDS.length;
+        render();
         try {
-          if (autoplay) embedController.loadVideoById(YT_IDS[playIndex]);
-          else embedController.cueVideoById(YT_IDS[playIndex]);
+          if (autoplay) {
+            armWatchdog();
+            embedController.loadVideoById(YT_IDS[playIndex]);
+          } else {
+            embedController.cueVideoById(YT_IDS[playIndex]);
+          }
         } catch (e) {}
       }
 
@@ -315,8 +345,12 @@ const clientConfig = {
         if (embedController && embedReady) {
           try {
             const state = embedController.getPlayerState && embedController.getPlayerState();
-            if (state === 1) embedController.pauseVideo();
-            else embedController.playVideo();
+            if (state === 1) {
+              embedController.pauseVideo();
+            } else {
+              armWatchdog();
+              embedController.playVideo();
+            }
           } catch (e) {}
           return;
         }
@@ -328,7 +362,7 @@ const clientConfig = {
       }
 
       function stepTrack(delta) {
-        if (!embedController) return;
+        if (!embedController) { render(); return; }
         loadTrack(playIndex + delta, true);
       }
 
@@ -337,20 +371,30 @@ const clientConfig = {
 
       elPrev && elPrev.addEventListener('click', function () {
         userOffsetTracks -= 1;
-        render();
         stepTrack(-1);
       });
       elNext && elNext.addEventListener('click', function () {
         userOffsetTracks += 1;
-        render();
         stepTrack(1);
       });
 
       render();
       setInterval(function () {
-        // Only auto-advance the fake "now playing" clock while real audio
-        // isn't actually confirmed playing yet.
-        if (!embedIsPlaying) render();
+        // Self-heal: trust the embed's own reported state over our cached
+        // flag every tick, since a missed/late onStateChange event
+        // (buffering hiccups, ad breaks) would otherwise leave the play
+        // icon and progress bar showing something that doesn't match
+        // reality -- exactly the "play icon says playing, bar is moving,
+        // no sound" desync.
+        if (embedController && embedController.getPlayerState) {
+          let state;
+          try { state = embedController.getPlayerState(); } catch (e) { state = null; }
+          if (state !== null) {
+            const reallyPlaying = state === 1;
+            if (reallyPlaying !== embedIsPlaying) setPlayIcon(reallyPlaying);
+          }
+        }
+        render();
       }, 1000);
 
       /* Presence */
