@@ -1,0 +1,669 @@
+---
+import Layout from '~/layouts/Layout.astro';
+import hero from '~/assets/hero.webp';
+import heroJpg from '~/assets/hero.jpg';
+import heroMobile from '~/assets/hero-mobile.webp';
+import heroMobileJpg from '~/assets/hero-mobile.jpg';
+import albumArt from '~/assets/album-art.webp';
+import { site } from '~/config/site';
+
+export const prerender = false;
+
+function ytPlaylistId(url: string): string | null {
+  const m = url.match(/[?&]list=([A-Za-z0-9_-]+)/);
+  return m ? m[1] : null;
+}
+
+// Serialize the small subset the client needs, so we ship no more than needed.
+const clientConfig = {
+  epochStart: site.epochStart,
+  spotify: site.spotifyPlaylistUrl,
+  ytmusic: site.ytMusicPlaylistUrl,
+  ytPlaylistId: ytPlaylistId(site.youtubePlaylistUrl),
+  tracks: site.tracks.map((t) => ({
+    title: t.title,
+    artist: t.artist,
+    durationSec: t.durationSec,
+    href: t.href ?? site.spotifyPlaylistUrl,
+  })),
+};
+---
+<Layout>
+  <main class="stage">
+    <picture class="bg">
+      <source srcset={heroMobile.src} type="image/webp" media="(max-width: 760px)" />
+      <source srcset={heroMobileJpg.src} type="image/jpeg" media="(max-width: 760px)" />
+      <source srcset={hero.src} type="image/webp" />
+      <img
+        src={heroJpg.src}
+        width={hero.width}
+        height={hero.height}
+        alt="A bustling ladies’ parlour: friends chatting over chai, a woman getting a head massage, hairstyling and manicures around arched bulb-lit mirrors, retro Bollywood posters on the walls, an open door to an Indian street. The counter reads Khoobsurati (खूबसूरती) — beauty, from within and from without."
+        loading="eager"
+        fetchpriority="high"
+        decoding="async"
+        class="bg-img"
+      />
+    </picture>
+
+    <div class="scrim scrim-top" aria-hidden="true"></div>
+    <div class="scrim scrim-bottom" aria-hidden="true"></div>
+
+    <h1 class="sr-only">
+      Khoobsurati — 90s Bollywood that played at your neighborhood parlour
+    </h1>
+
+    <header class="topbar">
+      <div class="counter chip" aria-live="polite">
+        <span class="dot" aria-hidden="true"></span>
+        <span class="count-text"><span id="online-count">1</span> online</span>
+      </div>
+
+      <nav class="links" aria-label="Playlists">
+        <a
+          href={site.spotifyPlaylistUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="playlist-link chip"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm4.6 14.3a.75.75 0 0 1-1 .3c-2.9-1.7-6.5-2-10.7-1a.75.75 0 1 1-.35-1.45c4.6-1.1 8.6-.75 11.9 1.15a.75.75 0 0 1 .15 1zM18 13a.94.94 0 0 1-1.3.3c-3.3-2-8.4-2.6-12.35-1.4a.94.94 0 1 1-.55-1.8C8.1 8.7 13.75 9.35 17.55 11.7a.94.94 0 0 1 .45 1.3zm.15-3.15c-4-2.35-10.6-2.55-14.4-1.4a1.12 1.12 0 0 1-.65-2.15c4.35-1.3 11.6-1.05 16.2 1.65a1.12 1.12 0 1 1-1.15 1.9z"/></svg>
+          <span>Spotify</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+        <a
+          href={site.ytMusicPlaylistUrl}
+          target="_blank"
+          rel="noopener noreferrer"
+          class="playlist-link chip"
+        >
+          <svg viewBox="0 0 24 24" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm-2 6.2 7 3.8-7 3.8V8.2z"/></svg>
+          <span>YT Music</span>
+          <span class="arrow" aria-hidden="true">↗</span>
+        </a>
+      </nav>
+    </header>
+
+<section class="player" id="player" aria-label="Now playing">
+      <div class="row">
+        <button type="button" class="art" id="btn-art" aria-label="Play in browser">
+          <img src={albumArt.src} width="64" height="64" alt="" loading="lazy" decoding="async" />
+        </button>
+        <div class="meta">
+          <div class="track" id="track-title">Loading the parlour radio…</div>
+          <div class="artist" id="track-artist">&nbsp;</div>
+          <div class="progress" id="progress" aria-hidden="true">
+            <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
+            <div class="times">
+              <span id="time-elapsed">0:00</span>
+              <span id="time-total">0:00</span>
+            </div>
+          </div>
+        </div>
+        <div class="controls" role="group" aria-label="Playback">
+          <button type="button" class="ctl" id="btn-prev" aria-label="Previous track">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M6 6h2v12H6zM20 6v12L9 12z"/></svg>
+          </button>
+          <button type="button" class="ctl ctl-play" id="btn-play" aria-label="Play">
+            <svg id="icon-play" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="icon"><path fill="currentColor" d="M8 5v14l11-7z"/></svg>
+            <svg id="icon-pause" viewBox="0 0 24 24" width="20" height="20" aria-hidden="true" class="icon is-hidden"><path fill="currentColor" d="M6 5h4v14H6zM14 5h4v14h-4z"/></svg>
+          </button>
+          <button type="button" class="ctl" id="btn-next" aria-label="Next track">
+            <svg viewBox="0 0 24 24" width="18" height="18" aria-hidden="true"><path fill="currentColor" d="M16 6h2v12h-2zM4 6l11 6-11 6z"/></svg>
+          </button>
+        </div>
+      </div>
+      <div class="embed" id="embed-mount" aria-hidden="true"></div>
+    </section>
+  </main>
+
+  <script type="application/json" id="site-cfg" set:html={JSON.stringify(clientConfig)} />
+
+  <script is:inline>
+    (function () {
+      const cfg = JSON.parse(document.getElementById('site-cfg').textContent || '{}');
+      const tracks = cfg.tracks || [];
+      const epoch = Number(cfg.epochStart) || 0;
+      const total = tracks.reduce((s, t) => s + t.durationSec, 0) || 1;
+
+      const $ = (id) => document.getElementById(id);
+      const elTitle = $('track-title');
+      const elArtist = $('track-artist');
+      const elElapsed = $('time-elapsed');
+      const elTotal = $('time-total');
+      const elBar = $('bar-fill');
+      const elProgress = $('progress');
+      const elPlay = $('btn-play');
+      const elArt = $('btn-art');
+      const elPrev = $('btn-prev');
+      const elNext = $('btn-next');
+      const elCount = $('online-count');
+      const elPlayer = $('player');
+      const elEmbedMount = $('embed-mount');
+      const iconPlay = $('icon-play');
+      const iconPause = $('icon-pause');
+
+      let userOffsetTracks = 0;
+      let embedController = null;
+      let embedReady = false;
+      let embedIsPlaying = false;
+      // Pending track index the user has queued via play/prev/next
+      // while the embed API is still bootstrapping.
+      let pendingIndex = -1;
+
+      function fmt(sec) {
+        sec = Math.max(0, Math.floor(sec));
+        const m = Math.floor(sec / 60);
+        const s = sec % 60;
+        return m + ':' + (s < 10 ? '0' + s : s);
+      }
+
+      function currentTrack() {
+        if (!tracks.length) return null;
+        const elapsedTotal = ((Date.now() - epoch) / 1000) % total;
+        let acc = 0;
+        for (let i = 0; i < tracks.length; i++) {
+          const t = tracks[i];
+          if (elapsedTotal < acc + t.durationSec) {
+            return { i, into: elapsedTotal - acc };
+          }
+          acc += t.durationSec;
+        }
+        return { i: 0, into: 0 };
+      }
+
+      function activeIndex() {
+        const cur = currentTrack();
+        if (!cur) return 0;
+        return (cur.i + userOffsetTracks + tracks.length * 1000) % tracks.length;
+      }
+
+      const YT_LIST = cfg.ytPlaylistId || '';
+
+      function setPlayIcon(isPlaying) {
+        embedIsPlaying = isPlaying;
+        if (iconPlay && iconPause) {
+          iconPlay.classList.toggle('is-hidden', isPlaying);
+          iconPause.classList.toggle('is-hidden', !isPlaying);
+        }
+        elPlay.setAttribute('aria-label', isPlaying ? 'Pause' : 'Play');
+      }
+
+      function render() {
+        const cur = currentTrack();
+        if (!cur) return;
+        const idx = activeIndex();
+        const t = tracks[idx];
+        const isNow = userOffsetTracks === 0;
+        elTitle.textContent = t.title;
+        elArtist.textContent = t.artist;
+        elTotal.textContent = fmt(t.durationSec);
+        // When the Spotify embed is driving playback, its own scrubber shows
+        // real progress — hide our fake one so we don't lie to the user.
+        if (embedController) {
+          if (elProgress) elProgress.style.display = 'none';
+        } else {
+          const into = isNow ? cur.into : 0;
+          elElapsed.textContent = fmt(into);
+          const pct = Math.min(100, Math.max(0, (into / t.durationSec) * 100));
+          elBar.style.width = pct + '%';
+        }
+      }
+
+      /* YouTube IFrame API integration — no login gate, and gives us real
+       * prev/next control over the playlist. */
+      function ensureYouTubeScript() {
+        if (window.__ytScriptRequested) return;
+        window.__ytScriptRequested = true;
+        const s = document.createElement('script');
+        s.src = 'https://www.youtube.com/iframe_api';
+        s.async = true;
+        document.head.appendChild(s);
+      }
+
+      function mountYouTube() {
+        if (!YT_LIST || !elEmbedMount || embedController) return;
+        elEmbedMount.innerHTML = '';
+        const holder = document.createElement('div');
+        holder.id = 'yt-player';
+        elEmbedMount.appendChild(holder);
+        elPlayer.classList.add('is-live');
+        setPlayIcon(true);
+        embedController = new window.YT.Player('yt-player', {
+          width: '100%',
+          height: '100%',
+          playerVars: {
+            listType: 'playlist',
+            list: YT_LIST,
+            autoplay: 1,
+            playsinline: 1,
+            modestbranding: 1,
+            rel: 0,
+          },
+          events: {
+            onReady: function (e) {
+              embedReady = true;
+              try { e.target.playVideo(); } catch (err) {}
+            },
+            onStateChange: function (e) {
+              // YT.PlayerState.PLAYING === 1, PAUSED === 2
+              if (e.data === 1) setPlayIcon(true);
+              else if (e.data === 2) setPlayIcon(false);
+            },
+          },
+        });
+      }
+
+      window.onYouTubeIframeAPIReady = function () { mountYouTube(); };
+
+      function togglePlay() {
+        if (!embedController) {
+          if (window.YT && window.YT.Player) mountYouTube();
+          else ensureYouTubeScript();
+          return;
+        }
+        try {
+          const state = embedController.getPlayerState && embedController.getPlayerState();
+          if (state === 1) embedController.pauseVideo();
+          else embedController.playVideo();
+        } catch (e) {}
+      }
+
+      function stepTrack(delta) {
+        if (!embedController) {
+          if (window.YT && window.YT.Player) mountYouTube();
+          else ensureYouTubeScript();
+          return;
+        }
+        try {
+          if (delta > 0 && embedController.nextVideo) embedController.nextVideo();
+          else if (delta < 0 && embedController.previousVideo) embedController.previousVideo();
+        } catch (e) {}
+      }
+
+      elPlay && elPlay.addEventListener('click', togglePlay);
+      elArt && elArt.addEventListener('click', togglePlay);
+
+      elPrev && elPrev.addEventListener('click', function () {
+        userOffsetTracks -= 1;
+        render();
+        stepTrack(-1);
+      });
+      elNext && elNext.addEventListener('click', function () {
+        userOffsetTracks += 1;
+        render();
+        stepTrack(1);
+      });
+
+      render();
+      setInterval(function () {
+        // Only auto-advance the "now playing" text when the user is watching
+        // the shared radio, not while the Spotify embed is doing its own thing.
+        if (!embedController) render();
+      }, 1000);
+
+      /* Presence */
+      const KEY = 'parlour_sid';
+      function makeSid() {
+        try {
+          const buf = new Uint8Array(16);
+          crypto.getRandomValues(buf);
+          return Array.from(buf).map(b => b.toString(16).padStart(2, '0')).join('');
+        } catch {
+          return String(Math.random()).slice(2) + String(Date.now());
+        }
+      }
+      let sid;
+      try {
+        sid = localStorage.getItem(KEY);
+        if (!sid) {
+          sid = makeSid();
+          localStorage.setItem(KEY, sid);
+        }
+      } catch {
+        sid = makeSid();
+      }
+
+      async function ping(leaving) {
+        try {
+          if (leaving && navigator.sendBeacon) {
+            const blob = new Blob([JSON.stringify({ sessionId: sid, leaving: true })], {
+              type: 'application/json',
+            });
+            navigator.sendBeacon('/api/presence', blob);
+            return;
+          }
+          const res = await fetch('/api/presence', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ sessionId: sid }),
+            keepalive: true,
+          });
+          const data = await res.json();
+          if (typeof data.count === 'number' && elCount) {
+            elCount.textContent = String(Math.max(1, data.count));
+          }
+        } catch {}
+      }
+
+      ping(false);
+      setInterval(function () { ping(false); }, 12_000);
+      window.addEventListener('pagehide', function () { ping(true); });
+      document.addEventListener('visibilitychange', function () {
+        if (document.visibilityState === 'visible') ping(false);
+      });
+    })();
+  </script>
+</Layout>
+
+<style>
+  .stage {
+    position: relative;
+    width: 100vw;
+    min-height: 100svh;
+    min-height: 100vh;
+    overflow: hidden;
+    isolation: isolate;
+  }
+
+  .bg {
+    position: absolute;
+    inset: 0;
+    z-index: 0;
+  }
+  .bg-img,
+  .bg :global(img) {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: 30% center;
+  }
+
+  @media (max-width: 760px) {
+    .bg-img,
+    .bg :global(img) {
+      object-position: center center;
+    }
+  }
+
+  .scrim {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    z-index: 1;
+  }
+  .scrim-top {
+    top: 0;
+    height: 18vh;
+    background: linear-gradient(
+      to bottom,
+      rgba(20, 10, 8, 0.55) 0%,
+      rgba(20, 10, 8, 0.28) 55%,
+      rgba(20, 10, 8, 0) 100%
+    );
+  }
+  .scrim-bottom {
+    bottom: 0;
+    height: 32vh;
+    background: linear-gradient(
+      to top,
+      rgba(20, 10, 8, 0.7) 0%,
+      rgba(20, 10, 8, 0.4) 55%,
+      rgba(20, 10, 8, 0) 100%
+    );
+  }
+
+  .sr-only {
+    position: absolute !important;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    clip-path: inset(50%);
+    white-space: nowrap;
+    border: 0;
+  }
+
+  .topbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 4;
+    padding: 1.1rem 1.4rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 1rem;
+  }
+
+  .chip {
+    display: inline-flex;
+    align-items: center;
+    padding: 0.4rem 0.75rem;
+    background: linear-gradient(
+      180deg,
+      rgba(58, 15, 17, 0.72) 0%,
+      rgba(42, 10, 12, 0.78) 100%
+    );
+    border: 1px solid rgba(217, 168, 96, 0.28);
+    border-radius: 999px;
+    backdrop-filter: blur(10px) saturate(120%);
+    -webkit-backdrop-filter: blur(10px) saturate(120%);
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.25);
+    color: var(--cream);
+  }
+
+  .counter {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    font-size: 0.86rem;
+    letter-spacing: 0.02em;
+  }
+  .count-text { font-variant-numeric: tabular-nums; }
+  .dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--teal);
+    box-shadow: 0 0 0 0 rgba(125, 214, 180, 0.55);
+    animation: pulse 2.2s ease-out infinite;
+  }
+
+  @keyframes pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(125, 214, 180, 0.55); }
+    70%  { box-shadow: 0 0 0 10px rgba(125, 214, 180, 0); }
+    100% { box-shadow: 0 0 0 0 rgba(125, 214, 180, 0); }
+  }
+
+  .links {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+  }
+  .playlist-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.86rem;
+    transition: transform 180ms ease, border-color 180ms ease, background 180ms ease;
+  }
+  .playlist-link:hover {
+    border-color: rgba(217, 168, 96, 0.55);
+    background: linear-gradient(180deg, rgba(74, 20, 22, 0.82) 0%, rgba(52, 14, 16, 0.86) 100%);
+  }
+  .playlist-link svg { opacity: 0.85; }
+  .arrow { font-size: 0.78rem; opacity: 0.75; }
+
+  .player {
+    position: absolute;
+    left: 50%;
+    bottom: 1.5rem;
+    transform: translateX(-50%);
+    z-index: 5;
+    width: min(560px, calc(100% - 2rem));
+    padding: 0.7rem 0.9rem;
+    background: linear-gradient(
+      180deg,
+      rgba(58, 15, 17, 0.72) 0%,
+      rgba(42, 10, 12, 0.78) 100%
+    );
+    color: var(--cream);
+    border: 1px solid rgba(217, 168, 96, 0.28);
+    border-radius: 14px;
+    backdrop-filter: blur(14px) saturate(120%);
+    -webkit-backdrop-filter: blur(14px) saturate(120%);
+    box-shadow: var(--shadow);
+  }
+  .player .row {
+    display: grid;
+    grid-template-columns: 64px 1fr auto;
+    align-items: center;
+    gap: 0.9rem;
+  }
+  .embed {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 320ms ease, margin-top 320ms ease, opacity 260ms ease;
+    opacity: 0;
+    margin-top: 0;
+    border-radius: 10px;
+    aspect-ratio: 16 / 9;
+    width: 100%;
+  }
+  .player.is-live .embed {
+    max-height: 320px;
+    margin-top: 0.6rem;
+    opacity: 1;
+  }
+  .embed :global(iframe),
+  .embed :global(#yt-player) {
+    display: block;
+    width: 100%;
+    height: 100%;
+    aspect-ratio: 16 / 9;
+    border: 0;
+    border-radius: 10px;
+  }
+
+  .art {
+    display: block;
+    width: 64px;
+    height: 64px;
+    border-radius: 8px;
+    overflow: hidden;
+    position: relative;
+    padding: 0;
+    border: 1px solid rgba(217, 168, 96, 0.35);
+    background: rgba(58, 15, 17, 0.55);
+    cursor: pointer;
+    box-shadow: 0 4px 14px rgba(0, 0, 0, 0.35);
+    transition: transform 200ms ease, box-shadow 200ms ease;
+  }
+  .art:hover { transform: scale(1.03); box-shadow: 0 6px 20px rgba(0, 0, 0, 0.45); }
+  .art img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+
+  .meta { min-width: 0; }
+  .track {
+    font-family: var(--font-serif);
+    font-size: 1.05rem;
+    line-height: 1.15;
+    letter-spacing: 0.01em;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .artist {
+    font-size: 0.78rem;
+    color: var(--cream-dim);
+    margin-top: 0.15rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .progress { margin-top: 0.45rem; }
+  .bar {
+    height: 3px;
+    width: 100%;
+    background: rgba(246, 234, 211, 0.16);
+    border-radius: 999px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    width: 0%;
+    background: linear-gradient(90deg, var(--gold), var(--cream));
+    border-radius: 999px;
+    transition: width 500ms linear;
+  }
+  .times {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 0.25rem;
+    font-size: 0.68rem;
+    color: var(--cream-soft);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+  }
+  .ctl {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    border-radius: 999px;
+    color: var(--cream);
+    opacity: 0.85;
+    transition: opacity 180ms ease, background 180ms ease, transform 180ms ease;
+  }
+  .ctl:hover { opacity: 1; background: rgba(246, 234, 211, 0.12); }
+  .ctl:active { transform: scale(0.96); }
+  .ctl-play {
+    width: 40px;
+    height: 40px;
+    background: rgba(246, 234, 211, 0.9);
+    color: var(--maroon-deep);
+    opacity: 1;
+    position: relative;
+  }
+  .ctl-play:hover { background: var(--cream); }
+  .ctl-play .icon.is-hidden { display: none; }
+
+  @media (max-width: 480px) {
+    .topbar { padding: 0.9rem 1rem; }
+    .playlist-link span:not(.arrow) { display: inline; }
+    .links { gap: 0.9rem; }
+    .player {
+      grid-template-columns: 52px 1fr auto;
+      gap: 0.7rem;
+      padding: 0.6rem 0.75rem;
+      bottom: 0.9rem;
+    }
+    .art { width: 52px; height: 52px; }
+    .art-glyph { font-size: 1.55rem; }
+    .track { font-size: 0.98rem; }
+    .ctl { width: 30px; height: 30px; }
+    .ctl-play { width: 36px; height: 36px; }
+  }
+
+  @media (max-width: 360px) {
+    .playlist-link span:not(.arrow) { display: none; }
+    .playlist-link .arrow { display: none; }
+  }
+</style>

@@ -29,14 +29,21 @@ node scripts/prepare-images.mjs
 ## Deploy (Cloudflare)
 
 ```bash
-npm run build
-npx wrangler deploy
-# one-time secrets
-npx wrangler secret put UPSTASH_REDIS_REST_URL
-npx wrangler secret put UPSTASH_REDIS_REST_TOKEN
+npm run deploy            # builds then wrangler deploy
 ```
 
-The site works fine without Upstash configured — the counter just shows `1`.
+Dry run (build + package but don't push):
+
+```bash
+npm run deploy:dry
+```
+
+One-time secrets for the presence counter (site works without them —
+counter just shows `1`):
+
+```bash
+npm run secrets
+```
 
 ## Content edits
 

@@ -1,0 +1,27 @@
+{
+  "name": "parlour-wtf",
+  "type": "module",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "images": "node scripts/prepare-images.mjs && node scripts/make-favicon.mjs",
+    "deploy": "npm run build && wrangler deploy",
+    "deploy:dry": "npm run build && wrangler deploy --dry-run",
+    "secrets": "wrangler secret put UPSTASH_REDIS_REST_URL && wrangler secret put UPSTASH_REDIS_REST_TOKEN"
+  },
+  "dependencies": {
+    "astro": "^5.14.4",
+    "@astrojs/cloudflare": "^12.6.11",
+    "@astrojs/sitemap": "^3.6.0",
+    "@upstash/redis": "^1.35.7",
+    "sharp": "^0.34.4"
+  },
+  "devDependencies": {
+    "wrangler": "^4.59.2"
+  }
+}
