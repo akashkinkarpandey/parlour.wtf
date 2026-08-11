@@ -14,8 +14,19 @@
   "observability": {
     "enabled": true
   },
-  "vars": {
-    // Set real values via `wrangler secret put` for production:
-    //   UPSTASH_REDIS_REST_URL, UPSTASH_REDIS_REST_TOKEN
-  }
+  // Presence ("online now" count) lives in a Durable Object -- see
+  // src/durable-objects/presence-room.ts. No secrets, no external service.
+  "durable_objects": {
+    "bindings": [{ "name": "PRESENCE", "class_name": "PresenceRoom" }]
+  },
+  "migrations": [{ "tag": "v1", "new_sqlite_classes": ["PresenceRoom"] }],
+  // Per-IP rate limit on /api/presence, on top of the Durable Object's own
+  // per-session throttle -- see src/pages/api/presence.ts.
+  "ratelimits": [
+    {
+      "name": "PRESENCE_RATE_LIMITER",
+      "namespace_id": "1001",
+      "simple": { "limit": 30, "period": 10 }
+    }
+  ]
 }

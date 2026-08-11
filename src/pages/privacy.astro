@@ -10,7 +10,7 @@ export const prerender = true;
   description="What Khoobsurati collects (very little), what it doesn't, and how the shared 'online now' counter and analytics work."
 >
   <h1>Privacy Policy</h1>
-  <p class="updated">Last updated: August 10, 2026</p>
+  <p class="updated">Last updated: August 11, 2026</p>
 
   <h2>1. Who we are</h2>
   <p>
@@ -41,11 +41,11 @@ export const prerender = true;
     While the page is open, your browser generates a random, disposable
     session ID — not tied to your identity in any way — and pings our
     server every few seconds so the page can show roughly how many people
-    are listening right now. That ID lives in a small database
-    (<a href="https://upstash.com/privacy" target="_blank" rel="noopener noreferrer">Upstash Redis</a>)
-    for at most about two minutes and then expires automatically. It's never
-    linked to who you are, never used for anything beyond the live count, and
-    isn't shared with anyone.
+    are listening right now. That ID is held only in memory on Cloudflare's
+    edge (no separate database, no third party involved) and is discarded
+    within under a minute of your last ping. It's never linked to who you
+    are, never used for anything beyond the live count, and isn't shared
+    with anyone.
   </p>
 
   <h3>Analytics</h3>
@@ -112,11 +112,6 @@ export const prerender = true;
           <td><a href="https://www.cloudflare.com/privacypolicy/" target="_blank" rel="noopener noreferrer">cloudflare.com/privacypolicy</a></td>
         </tr>
         <tr>
-          <td>Upstash</td>
-          <td>Redis database for the "online now" counter</td>
-          <td><a href="https://upstash.com/privacy" target="_blank" rel="noopener noreferrer">upstash.com/privacy</a></td>
-        </tr>
-        <tr>
           <td>Google Analytics</td>
           <td>Aggregate usage analytics</td>
           <td><a href="https://policies.google.com/privacy" target="_blank" rel="noopener noreferrer">policies.google.com/privacy</a></td>
@@ -137,7 +132,7 @@ export const prerender = true;
 
   <h2>7. Data retention</h2>
   <ul>
-    <li><strong>"Online now" session IDs</strong> — auto-expire after roughly two minutes of inactivity; not kept beyond that</li>
+    <li><strong>"Online now" session IDs</strong> — held in memory only, auto-discarded within under a minute of inactivity; never written to disk</li>
     <li><strong>Analytics data</strong> — retained per Google Analytics' standard aggregate-data window</li>
     <li><strong>Server logs</strong> — we don't keep our own; Cloudflare's standard operational logs apply per their policy above</li>
   </ul>

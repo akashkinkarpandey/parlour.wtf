@@ -11,14 +11,12 @@
     "astro": "astro",
     "images": "node scripts/prepare-images.mjs && node scripts/make-favicon.mjs && node scripts/make-pwa-icons.mjs",
     "deploy": "npm run build && wrangler deploy",
-    "deploy:dry": "npm run build && wrangler deploy --dry-run",
-    "secrets": "wrangler secret put UPSTASH_REDIS_REST_URL && wrangler secret put UPSTASH_REDIS_REST_TOKEN"
+    "deploy:dry": "npm run build && wrangler deploy --dry-run"
   },
   "dependencies": {
-    "astro": "^5.14.4",
     "@astrojs/cloudflare": "^12.6.11",
     "@astrojs/sitemap": "^3.6.0",
-    "@upstash/redis": "^1.35.7",
+    "astro": "^5.14.4",
     "sharp": "^0.34.4"
   },
   "devDependencies": {

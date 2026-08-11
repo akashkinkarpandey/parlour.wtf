@@ -9,13 +9,13 @@ counter, and links out to a curated 90s Bollywood playlist. Sister site to
 - Astro 5 (SSR on Cloudflare)
 - TypeScript, no framework runtime
 - Cloudflare Pages / Workers (`@astrojs/cloudflare` adapter)
-- Upstash Redis REST for the presence counter
+- A Durable Object (`PresenceRoom`) for the live presence counter — no
+  external database, see `src/durable-objects/presence-room.ts`
 
 ## Develop
 
 ```bash
 npm install
-cp .env.example .env    # fill in Upstash creds (optional in dev)
 npm run dev
 ```
 
@@ -36,13 +36,6 @@ Dry run (build + package but don't push):
 
 ```bash
 npm run deploy:dry
-```
-
-One-time secrets for the presence counter (site works without them —
-counter just shows `1`):
-
-```bash
-npm run secrets
 ```
 
 ## Content edits

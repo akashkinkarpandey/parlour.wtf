@@ -8,6 +8,10 @@ export default defineConfig({
   adapter: cloudflare({
     imageService: 'compile',
     platformProxy: { enabled: true },
+    // Custom entrypoint so the PresenceRoom Durable Object class is a real
+    // top-level export of the Worker (required for wrangler to bind it) --
+    // see src/worker.ts.
+    workerEntryPoint: { path: 'src/worker.ts', namedExports: ['PresenceRoom'] },
   }),
   integrations: [sitemap()],
   prefetch: false,
