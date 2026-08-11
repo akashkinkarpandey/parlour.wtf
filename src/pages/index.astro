@@ -132,9 +132,18 @@ const clientConfig = {
             <div class="track" id="track-title">Loading the parlour radio…</div>
             <div class="artist" id="track-artist">&nbsp;</div>
           </div>
-          <div class="progress" id="progress" aria-hidden="true">
-            <div class="bar"><div class="bar-fill" id="bar-fill"></div></div>
-            <div class="times">
+          <div class="progress" id="progress">
+            <div
+              class="bar"
+              id="progress-bar"
+              role="slider"
+              tabindex="0"
+              aria-label="Seek"
+              aria-valuemin="0"
+              aria-valuemax="100"
+              aria-valuenow="0"
+            ><div class="bar-fill" id="bar-fill"></div></div>
+            <div class="times" aria-hidden="true">
               <span id="time-elapsed">0:00</span>
               <span id="time-total">0:00</span>
             </div>
@@ -579,6 +588,16 @@ const clientConfig = {
     border-radius: 999px;
     overflow: visible;
     position: relative;
+    cursor: pointer;
+  }
+  /* The visual track is only 2px tall -- much too thin to tap reliably.
+     This pseudo-element pads the actual hit region without touching
+     layout (the bar sits inside a flex column with .track/.artist above
+     and .times below, so real padding here would shove them apart). */
+  .bar::before {
+    content: '';
+    position: absolute;
+    inset: -7px 0;
   }
   .bar-fill {
     height: 100%;

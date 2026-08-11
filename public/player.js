@@ -19,6 +19,7 @@
   const elPrev = $('btn-prev');
   const elNext = $('btn-next');
   const elCount = $('online-count');
+  const elProgressBar = $('progress-bar');
   const elPlayer = $('player');
   const elEmbedMount = $('embed-mount');
   const iconPlay = $('icon-play');
@@ -36,6 +37,18 @@
   // Set when the user hits play before the embed has finished
   // bootstrapping, so we can honor it the moment it's ready.
   let pendingPlay = false;
+  // Set when the user seeks (clicks the progress bar) before the embed
+  // has finished bootstrapping -- cued alongside pendingPlay so the
+  // track starts at the clicked position instead of from 0:00.
+  let pendingSeekSeconds = null;
+  // The track the seek above was computed against. onReady/mountYouTube
+  // re-derive activeIndex() independently and can land on a *different*
+  // track if the shared ambient clock ticks past a boundary between the
+  // click and actually loading -- freezing the index here keeps the
+  // absolute seconds value meaningful for whichever track it was
+  // computed against, instead of being applied to whatever's current by
+  // the time playback actually starts.
+  let pendingSeekTrackIndex = null;
   // Index into YT_IDS of whatever's actually loaded in the embed.
   let playIndex = 0;
   // Guards against a track that neither errors nor ever reaches
@@ -140,6 +153,72 @@
     elElapsed.textContent = fmt(into);
     const pct = Math.min(100, Math.max(0, (into / durationSec) * 100));
     elBar.style.width = pct + '%';
+    if (elProgressBar) {
+      elProgressBar.setAttribute('aria-valuenow', String(Math.round(pct)));
+      elProgressBar.setAttribute('aria-valuetext', fmt(into) + ' of ' + fmt(durationSec));
+    }
+  }
+
+  // Seeks the current track to `ratio` (0..1) through its duration, and
+  // starts playback from there if it wasn't already playing -- clicking
+  // the progress bar is a clear "play from here" gesture, not just a
+  // preview. Optimistically updates the UI immediately so the bar and
+  // elapsed time respond the instant you click, rather than waiting on
+  // the embed to confirm the seek on its own clock (~1s render tick).
+  function seekTo(ratio) {
+    ratio = Math.min(1, Math.max(0, ratio));
+    // Once the embed is ready, `playIndex` is the source of truth for
+    // what's actually loaded (onReady always sets it before cueing) --
+    // using activeIndex() here instead, as this used to, could target a
+    // *different* track than what's really in the iframe if the shared
+    // ambient clock had ticked forward since onReady ran, applying the
+    // seek's absolute-seconds value to the wrong track's timeline.
+    const idx = embedReady ? playIndex : activeIndex();
+    const t = tracks[idx];
+    if (!t) return;
+    const duration = (embedController && embedController.getDuration && embedController.getDuration()) || t.durationSec;
+    const seekSeconds = ratio * duration;
+
+    elBar.style.width = (ratio * 100) + '%';
+    elElapsed.textContent = fmt(seekSeconds);
+    if (elProgressBar) {
+      elProgressBar.setAttribute('aria-valuenow', String(Math.round(ratio * 100)));
+      elProgressBar.setAttribute('aria-valuetext', fmt(seekSeconds) + ' of ' + fmt(duration));
+    }
+
+    // Remembered regardless of path below, and only cleared once actually
+    // applied -- YouTube's seekTo() is only reliable once the video is
+    // confirmed actually playing (its own docs: playing, or a confirmed
+    // CUED state -- which this embed doesn't reliably signal in practice).
+    // Calling it any earlier can silently no-op, leaving playback at
+    // 0:00. onStateChange's PLAYING handler below re-applies it as
+    // confirmation once that's actually true.
+    pendingSeekSeconds = seekSeconds;
+
+    if (embedController && embedReady) {
+      try {
+        const state = embedController.getPlayerState && embedController.getPlayerState();
+        armWatchdog();
+        embedController.seekTo(seekSeconds, true);
+        if (state === 1) {
+          // Already playing -- seekTo() is reliable here, no need to
+          // wait for a state transition that isn't coming.
+          pendingSeekSeconds = null;
+        } else {
+          embedController.playVideo();
+        }
+      } catch (e) {}
+      return;
+    }
+
+    // Embed hasn't finished bootstrapping yet -- queue the play alongside
+    // the seek above, and freeze which track this seek was computed
+    // against so onReady loads exactly that one instead of re-deriving
+    // activeIndex() at whatever later moment it actually runs.
+    pendingPlay = true;
+    pendingSeekTrackIndex = idx;
+    if (window.YT && window.YT.Player) mountYouTube();
+    else ensureYouTubeScript();
   }
 
   /* YouTube IFrame API integration — no login gate, and gives us real
@@ -185,20 +264,41 @@
       events: {
         onReady: function () {
           embedReady = true;
-          playIndex = activeIndex();
-          // Silently cue (not play) whatever track the shared clock
-          // currently points at, so the first real playVideo() has
-          // something already loaded to act on.
-          try { embedController.cueVideoById(YT_IDS[playIndex]); } catch (e) {}
-          if (pendingPlay) {
-            pendingPlay = false;
-            armWatchdog();
-            try { embedController.playVideo(); } catch (e) {}
-          }
+          // Use whichever track seekTo() froze this against, if any --
+          // re-deriving activeIndex() fresh here is what let a pending
+          // seek's absolute-seconds value land on the wrong track.
+          playIndex = pendingSeekTrackIndex != null ? pendingSeekTrackIndex : activeIndex();
+          pendingSeekTrackIndex = null;
+          try {
+            if (pendingPlay) {
+              armWatchdog();
+              embedController.loadVideoById(YT_IDS[playIndex]);
+            } else {
+              // Silently cue (not play) whatever track the shared clock
+              // currently points at, so the first real playVideo() has
+              // something already loaded to act on.
+              embedController.cueVideoById(YT_IDS[playIndex]);
+            }
+          } catch (e) {}
         },
         onStateChange: function (e) {
-          // YT.PlayerState: PLAYING===1, PAUSED===2, ENDED===0
+          // YT.PlayerState: UNSTARTED=-1, ENDED=0, PLAYING=1, PAUSED=2, BUFFERING=3, CUED=5
           if (e.data === 1) {
+            pendingPlay = false;
+            if (pendingSeekSeconds != null) {
+              // A pre-roll ad also reports PLAYING, and seeking into one
+              // is a silent no-op -- consuming the one pending seek for
+              // nothing, so the real content that follows starts at
+              // 0:00 with no second chance to correct it. Ads run well
+              // under a minute; our tracks run minutes long, so gate on
+              // duration to tell them apart and keep waiting through an
+              // ad instead of firing early.
+              const dur = embedController.getDuration ? embedController.getDuration() : 0;
+              if (dur > 60) {
+                try { embedController.seekTo(pendingSeekSeconds, true); } catch (err) {}
+                pendingSeekSeconds = null;
+              }
+            }
             setPlayIcon(true);
             elPlayer.classList.add('is-live');
             render();
@@ -291,6 +391,28 @@
     userOffsetTracks += 1;
     stepTrack(1);
   });
+
+  if (elProgressBar) {
+    elProgressBar.addEventListener('click', function (e) {
+      const rect = elProgressBar.getBoundingClientRect();
+      seekTo((e.clientX - rect.left) / rect.width);
+    });
+    elProgressBar.addEventListener('keydown', function (e) {
+      if (['ArrowLeft', 'ArrowRight', 'Home', 'End'].indexOf(e.key) === -1) return;
+      e.preventDefault();
+      const idx = realAudioConfirmed ? playIndex : activeIndex();
+      const t = tracks[idx];
+      if (!t) return;
+      const duration = (embedController && embedController.getDuration && embedController.getDuration()) || t.durationSec;
+      const current = (embedController && embedController.getCurrentTime && embedController.getCurrentTime()) || 0;
+      let target = current;
+      if (e.key === 'ArrowLeft') target = current - 5;
+      else if (e.key === 'ArrowRight') target = current + 5;
+      else if (e.key === 'Home') target = 0;
+      else if (e.key === 'End') target = duration;
+      seekTo(target / duration);
+    });
+  }
 
   render();
   setInterval(function () {
