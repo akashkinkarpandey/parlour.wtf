@@ -1,0 +1,26 @@
+# Khoobsurati (parlour.wtf)
+
+> A single-page ambient site: one illustrated ladies' parlour, a live
+> "online now" counter, and a looping 90s Bollywood playlist that plays
+> in the browser — background noise like the radio at your neighbourhood
+> parlour. Not a company, a streaming service, or a business — a hobby
+> project built and run by one person, with nothing for sale.
+
+Khoobsurati doesn't host any audio. Playback happens through YouTube's
+embedded player, and the same tracks are linked out to curated Spotify
+and YouTube Music playlists. The "online now" counter is a shared-radio
+illusion: everyone with the page open is, roughly, hearing the same song
+at the same time.
+
+## Pages
+
+- [Home](https://parlour.wtf/): the player, the currently playing track, and the live listener count
+- [About](https://parlour.wtf/about): what Khoobsurati is and isn't, and who runs it
+- [Contact](https://parlour.wtf/contact): how to reach the operator
+- [Privacy Policy](https://parlour.wtf/privacy)
+- [Terms & Conditions](https://parlour.wtf/terms)
+
+## Notes
+
+- One-person hobby project — no accounts, no sign-up, no algorithm.
+- Sister site: saloon.wtf.
