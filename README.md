@@ -1,8 +1,7 @@
 # parlour.wtf — Khoobsurati
 
 A single-page ambient site: one illustrated ladies’ parlour, a live "online"
-counter, and links out to a curated 90s Bollywood playlist. Sister site to
-`saloon.wtf`.
+counter, and links out to a curated 90s Bollywood playlist.
 
 ## Stack
 
