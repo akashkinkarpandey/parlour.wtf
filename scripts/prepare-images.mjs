@@ -24,10 +24,15 @@ await sharp(src)
   .toFile(`${outDir}/hero.jpg`);
 
 const w = meta.width, h = meta.height;
-const targetAspect = 9 / 16;
+// 3:4 rather than 9:16 -- the source is only 848px tall, so a 9:16 sliver
+// (477px wide) had to be upscaled ~1.74x to hit the 828px output width,
+// leaving it visibly soft. 3:4 needs only a ~1.3x upscale and, at focalX
+// 0.33, also brings the "Khubsurati: Confidence kaa Kamaal" tagline
+// poster into frame -- object-fit: cover crops the rest per-device.
+const targetAspect = 3 / 4;
 const cropH = h;
 const cropW = Math.min(w, Math.round(cropH * targetAspect));
-const focalX = Math.round(w * 0.35);
+const focalX = Math.round(w * 0.33);
 let left = focalX - Math.round(cropW / 2);
 if (left < 0) left = 0;
 if (left + cropW > w) left = w - cropW;

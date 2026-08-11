@@ -167,8 +167,12 @@ const clientConfig = {
   .stage {
     position: relative;
     width: 100vw;
-    min-height: 100svh;
+    /* svh must win here (see Layout.astro body rule) -- this is exactly
+       what was pushing the player below the fold on mobile: 100vh made
+       .stage taller than the visible viewport whenever the browser's
+       address bar was showing. */
     min-height: 100vh;
+    min-height: 100svh;
     overflow: hidden;
     isolation: isolate;
   }

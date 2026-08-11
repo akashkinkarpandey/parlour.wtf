@@ -149,8 +149,12 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
   }
 
   body {
-    min-height: 100svh;
+    /* svh must win: on mobile, 100vh is the *largest* viewport height (as
+       if the address bar were hidden), so declaring it last would make
+       body taller than what's actually visible and force a scroll. Keep
+       vh first as the fallback for browsers without svh support. */
     min-height: 100vh;
+    min-height: 100svh;
   }
 
   a {
