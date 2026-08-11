@@ -109,6 +109,9 @@ const ogImage = new URL(site.ogImage, Astro.site ?? `https://${site.domain}`).to
          <script src> (not inline) so the strict CSP (script-src, no
          'unsafe-inline') still applies. See public/ga.js. -->
     <script src="/ga.js" defer is:inline></script>
+
+    <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-1206166642979776"
+     crossorigin="anonymous" is:inline></script>
   </head>
   <body>
     <slot />
