@@ -47,6 +47,8 @@ export const site = {
   ytMusicPlaylistUrl:
     'https://music.youtube.com/playlist?list=PLwe4fFMaJo2c-Cj5DlnKEvbI3v29dBkP3',
 
+  buyMeACoffeeUrl: 'https://buymeacoffee.com/akashkinkarpandey',
+
   /**
    * Fixed epoch (ms) used to compute the currently-playing track so that
    * every visitor sees roughly the same song at the same time. Do not change
